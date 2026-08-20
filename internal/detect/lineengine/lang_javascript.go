@@ -124,7 +124,7 @@ func jsSpec(lang detect.Language, exts []string) *Spec {
 			{
 				// Recorded only so it can be reported as a deliberate exclusion.
 				ID: "js.route", Client: "route",
-				Head:   regexp.MustCompile(`\b(?:app|router|server|fastify|api)\.(?P<verb>` + verbs + `|all|use)`),
+				Head:   regexp.MustCompile(`\b(?:app|router|server|fastify)\.(?P<verb>` + verbs + `|all|use)`),
 				URLArg: 0, MethodArg: -1, MinArgs: 1,
 				RouteIfHandlerArg: true,
 			},

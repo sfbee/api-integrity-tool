@@ -24,6 +24,7 @@ import (
 	"github.com/stephen-bee/endpoint-monitor/internal/classify"
 	"github.com/stephen-bee/endpoint-monitor/internal/detect"
 	"github.com/stephen-bee/endpoint-monitor/internal/detect/golang"
+	"github.com/stephen-bee/endpoint-monitor/internal/detect/lineengine"
 	"github.com/stephen-bee/endpoint-monitor/internal/gitmeta"
 	"github.com/stephen-bee/endpoint-monitor/internal/index"
 	"github.com/stephen-bee/endpoint-monitor/internal/normalize"
@@ -82,9 +83,18 @@ type Result struct {
 }
 
 // DefaultRegistry returns the detectors compiled into this binary.
+//
+// Go gets a real AST detector. The rest share the line-oriented engine, whose
+// findings carry a confidence penalty so the difference in evidence quality is
+// visible in the index rather than averaged away.
 func DefaultRegistry() *detect.Registry {
 	r := detect.NewRegistry()
 	r.Register(golang.New())
+	r.Register(lineengine.NewJavaScript())
+	r.Register(lineengine.NewTypeScript())
+	r.Register(lineengine.NewPython())
+	r.Register(lineengine.NewPerl())
+	r.Register(lineengine.NewRuby())
 	return r
 }
 

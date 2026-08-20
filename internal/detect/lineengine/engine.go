@@ -33,6 +33,11 @@ import (
 	"github.com/stephen-bee/endpoint-monitor/internal/detect"
 )
 
+// noteAlwaysRoute marks a site that a server-framework DSL signature claimed.
+// It is definitive evidence, unlike the handler-argument heuristic, so it is
+// allowed to override signature priority during deduplication.
+const noteAlwaysRoute = "always_route"
+
 // Signature describes one recognizable call shape.
 type Signature struct {
 	// ID is the stable pattern name recorded on each call, e.g. "axios.method".
@@ -209,8 +214,64 @@ func (d Detector) Detect(ctx context.Context, f *detect.SourceFile) (*detect.Fil
 		}
 		d.matchSignature(&d.spec.Signatures[i], code, imports, instances, funcs, res)
 	}
-	_ = src
+	res.Sites = dedupeSites(res.Sites)
 	return res, nil
+}
+
+// dedupeSites keeps one site per source position.
+//
+// Several signatures legitimately match the same text: "api.get('/users')" is
+// both an axios instance call and a possible express route registration, and
+// without this a single call site produces two index entries -- one of them
+// with the wrong host, which then invents a phantom upstream to link.
+//
+// Priority is signature order within the Spec, so precedence is declared where
+// the signatures are, not hidden here. The one override is AlwaysRoute: a
+// server-framework DSL is definitive evidence, so it wins regardless of order.
+//
+// Note that RouteLike is deliberately NOT propagated from a losing match to the
+// winner. Some real clients take a callback -- superagent.get(url, cb) -- and
+// treating "has a function argument" as decisive across signatures would
+// silently discard those calls.
+func dedupeSites(sites []detect.RawSite) []detect.RawSite {
+	if len(sites) < 2 {
+		return sites
+	}
+	type key struct{ line, col int }
+	best := make(map[key]int, len(sites))
+	order := make([]key, 0, len(sites))
+	for i := range sites {
+		k := key{sites[i].Pos.Line, sites[i].Pos.Col}
+		prev, seen := best[k]
+		if !seen {
+			best[k] = i
+			order = append(order, k)
+			continue
+		}
+		// Later matches only displace earlier ones when they are definitive.
+		if sites[i].RouteLike && !sites[prev].RouteLike && sites[i].Pattern != sites[prev].Pattern {
+			if isDefinitiveRoute(sites[i]) {
+				best[k] = i
+			}
+		}
+	}
+	out := make([]detect.RawSite, 0, len(order))
+	for _, k := range order {
+		out = append(out, sites[best[k]])
+	}
+	return out
+}
+
+// isDefinitiveRoute reports whether a site was marked a route by a
+// server-framework signature rather than by the weaker handler-argument
+// heuristic. Only the former may override signature priority.
+func isDefinitiveRoute(s detect.RawSite) bool {
+	for _, n := range s.Notes {
+		if n == noteAlwaysRoute {
+			return true
+		}
+	}
+	return false
 }
 
 // importSet holds the file's import tokens plus the derived capability flags
@@ -411,6 +472,7 @@ func (d Detector) matchSignature(sig *Signature, code string, imports importSet,
 		switch {
 		case sig.AlwaysRoute:
 			site.RouteLike = true
+			site.Notes = append(site.Notes, noteAlwaysRoute)
 		case sig.RouteIfHandlerArg && d.hasHandlerArg(args):
 			site.RouteLike = true
 		case !imports.hasClient && imports.hasServer && sig.RequireInstance:

@@ -339,3 +339,161 @@ func TestLineNumbersSurviveCommentBlanking(t *testing.T) {
 		t.Errorf("Pos.Line = %d, want 6", res.Sites[0].Pos.Line)
 	}
 }
+
+// One call site must produce exactly one endpoint. Several signatures can match
+// the same text -- "api.get('/users')" is an axios instance call and also fits
+// the generic route-registration shape -- and before dedupeSites this emitted
+// two entries: the correct one plus a phantom relative-host copy. The phantom
+// then showed up as its own host and would have prompted for an upstream repo
+// URL that does not exist.
+func TestOneCallSiteProducesOneEndpoint(t *testing.T) {
+	t.Parallel()
+	src := `
+import axios from 'axios';
+const api = axios.create({ baseURL: 'https://api.acme.com/v2' });
+export const load = (id) => api.get('/users/' + id);
+`
+	got := endpoints(t, NewJavaScript(), "api.ts", src)
+	if len(got) != 1 {
+		t.Fatalf("want exactly 1 endpoint, got %d: %v", len(got), got)
+	}
+	has(t, got, "GET api.acme.com/v2/users/{id}")
+	hasNot(t, got, "GET self/users/{id}")
+}
+
+// "api" reads as a client instance, not a server router. Naming a receiver
+// "api" is overwhelmingly an HTTP client in real code, and treating it as an
+// express app silently dropped genuine calls.
+func TestJavaScriptApiReceiverIsAClientNotARoute(t *testing.T) {
+	t.Parallel()
+	src := `
+import axios from 'axios';
+const api = axios.create({ baseURL: 'https://api.acme.com' });
+api.post('/v1/charge', {});
+`
+	has(t, endpoints(t, NewJavaScript(), "charge.js", src), "POST api.acme.com/v1/charge")
+}
+
+func TestPerlUserAgentCalls(t *testing.T) {
+	t.Parallel()
+	src := `
+use LWP::UserAgent;
+my $ua = LWP::UserAgent->new;
+my $base = "https://api.example.com";
+my $r1 = $ua->get("$base/api/v1/things");
+my $r2 = $ua->post($base . "/api/v1/things/create");
+my $r3 = $ua->delete("https://api.example.com/api/v1/things/42");
+`
+	got := endpoints(t, NewPerl(), "client.pl", src)
+	has(t, got,
+		"GET api.example.com/api/v1/things",
+		"POST api.example.com/api/v1/things/create",
+		// "42" stays literal: purely numeric segments are not collapsed to
+		// {id} by default, because digits are frequently a real part of the
+		// route ("/api/2/issue", "/v1/2020-08-27").
+		"DELETE api.example.com/api/v1/things/42",
+	)
+}
+
+func TestPerlHTTPTinyAndMojo(t *testing.T) {
+	t.Parallel()
+	src := `
+use HTTP::Tiny;
+use Mojo::UserAgent;
+my $http = HTTP::Tiny->new;
+my $res = $http->get("https://api.example.com/tiny/status");
+my $ua = Mojo::UserAgent->new;
+my $tx = $ua->post("https://api.example.com/mojo/publish");
+`
+	has(t, endpoints(t, NewPerl(), "mixed.pl", src),
+		"GET api.example.com/tiny/status",
+		"POST api.example.com/mojo/publish",
+	)
+}
+
+// Perl's POD blocks and __END__ section are prose. Example calls inside them are
+// documentation, not code, and indexing them invents endpoints the program never
+// calls.
+func TestPerlPodAndEndAreNotCode(t *testing.T) {
+	t.Parallel()
+	src := `
+use LWP::UserAgent;
+my $ua = LWP::UserAgent->new;
+my $real = $ua->get("https://api.example.com/real/call");
+
+=head1 SYNOPSIS
+
+  $ua->get("https://api.example.com/pod/example");
+
+=cut
+
+my $also_real = $ua->get("https://api.example.com/after/pod");
+
+__END__
+$ua->get("https://api.example.com/after/end");
+`
+	got := endpoints(t, NewPerl(), "doc.pl", src)
+	has(t, got, "GET api.example.com/real/call", "GET api.example.com/after/pod")
+	hasNot(t, got, "GET api.example.com/pod/example", "GET api.example.com/after/end")
+}
+
+func TestRubyFaradayAndNetHTTP(t *testing.T) {
+	t.Parallel()
+	src := `
+require 'faraday'
+require 'net/http'
+
+BASE = 'https://api.example.com'
+
+def fetch_user(id)
+  Faraday.get("#{BASE}/api/v1/users/#{id}")
+end
+
+def post_event
+  Faraday.post(BASE + '/api/v1/events')
+end
+
+def legacy
+  Net::HTTP.get(URI('https://api.example.com/legacy/ping'))
+end
+`
+	got := endpoints(t, NewRuby(), "client.rb", src)
+	has(t, got,
+		"GET api.example.com/api/v1/users/{id}",
+		"POST api.example.com/api/v1/events",
+	)
+}
+
+// A Faraday connection built with a url: option supplies the base for its bare
+// paths, the same way axios.create does in JavaScript.
+func TestRubyFaradayConnectionBinding(t *testing.T) {
+	t.Parallel()
+	src := `
+require 'faraday'
+conn = Faraday.new(url: 'https://api.acme.com/v3')
+def call(conn)
+  conn.get('/widgets')
+end
+`
+	has(t, endpoints(t, NewRuby(), "conn.rb", src), "GET api.acme.com/v3/widgets")
+}
+
+// Rails routes use the same verb names as HTTParty with an implicit receiver.
+// This is Ruby's version of the express/axios collision, and getting it wrong
+// fills the index with the application's own inbound routes.
+func TestRubyRailsRoutesAreNotOutboundCalls(t *testing.T) {
+	t.Parallel()
+	src := `
+Rails.application.routes.draw do
+  get '/api/v1/users', to: 'users#index'
+  post '/api/v1/users', to: 'users#create'
+  delete '/api/v1/users/:id', to: 'users#destroy'
+end
+`
+	got := endpoints(t, NewRuby(), "config/routes.rb", src)
+	hasNot(t, got,
+		"GET self/api/v1/users",
+		"POST self/api/v1/users",
+		"GET api.example.com/api/v1/users",
+	)
+}
