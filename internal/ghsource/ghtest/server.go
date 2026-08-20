@@ -114,27 +114,28 @@ func (s *Server) ETagJSON(path, etag string, body any) *Server {
 	})
 }
 
-// Contents registers a file for the contents endpoint, base64 encoded the way
-// GitHub returns it.
-func (s *Server) Contents(owner, name, path, ref, body string) *Server {
+// ContentsByRef registers a file whose body depends on the requested ref, which
+// is what a spec differ needs: the same path at two commits.
+func (s *Server) ContentsByRef(owner, name, path string, byRef map[string]string) *Server {
 	full := fmt.Sprintf("/repos/%s/%s/contents/%s", owner, name, path)
-	prev := s.routes[full]
 	return s.Handle(full, func(w http.ResponseWriter, r *http.Request) {
-		if got := r.URL.Query().Get("ref"); got != ref && ref != "" {
-			if prev != nil {
-				prev(w, r)
-				return
-			}
+		body, ok := byRef[r.URL.Query().Get("ref")]
+		if !ok {
 			http.NotFound(w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
-			"path": path, "sha": "sha-" + ref, "encoding": "base64",
+			"path": path, "sha": "sha-" + r.URL.Query().Get("ref"), "encoding": "base64",
 			"size":    len(body),
 			"content": base64.StdEncoding.EncodeToString([]byte(body)),
 		})
 	})
+}
+
+// Contents registers a file at a single ref.
+func (s *Server) Contents(owner, name, path, ref, body string) *Server {
+	return s.ContentsByRef(owner, name, path, map[string]string{ref: body})
 }
 
 // Status registers a bare status code for a path.

@@ -46,6 +46,7 @@ type UpstreamState struct {
 	// pushed since we last looked, the entire upstream is skipped.
 	PushedAtSeen   time.Time `json:"pushed_at_seen,omitempty"`
 	LastReleaseTag string    `json:"last_release_tag,omitempty"`
+	LastTagName    string    `json:"last_tag_name,omitempty"`
 	SpecPaths      []string  `json:"spec_paths,omitempty"`
 	// ETags are keyed by request URL. A 304 response costs no rate limit at
 	// all, which is the whole reason for storing these.

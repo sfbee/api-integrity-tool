@@ -96,8 +96,15 @@ upstream repositories:
 	unmonitor   record that a host is deliberately not watched
 	upstreams   show the current links and decisions
 
+monitoring:
+	check       look for upstream changes that would break your calls
+	findings    list what previous checks found
+	ack         acknowledge a finding
+	mute        silence a finding for a while
+
 other:
 	config      init or show .api-integrity.yml
+	doctor      report configuration, credentials and rate limits
 	version     print the version
 
 run "api-integrity-tool <command> -h" for a command's flags.
@@ -138,6 +145,16 @@ func Main(env Env) int {
 		err = runUpstreams(env, rest)
 	case "config":
 		err = runConfig(env, rest)
+	case "check":
+		err = runCheck(env, rest)
+	case "findings":
+		err = runFindings(env, rest)
+	case "ack":
+		err = runAck(env, rest)
+	case "mute":
+		err = runMute(env, rest)
+	case "doctor":
+		err = runDoctor(env, rest)
 	case "version":
 		fmt.Fprintln(env.Stdout, Version())
 	case "help", "-h", "--help":
