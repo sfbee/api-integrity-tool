@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API integrity</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header>
+  <h1>API integrity</h1>
+  <span class="meta" id="meta"></span>
+  <span style="flex:1"></span>
+  <button class="act" id="check">Run check</button>
+  <button class="act" id="logout">Log out</button>
+</header>
+<nav>
+  <button data-view="findings" aria-selected="true">Findings</button>
+  <button data-view="endpoints" aria-selected="false">Endpoints</button>
+  <button data-view="hosts" aria-selected="false">Hosts</button>
+  <button data-view="runs" aria-selected="false">Runs</button>
+</nav>
+<main id="main"></main>
+<script src="/static/app.js"></script>
+</body>
+</html>

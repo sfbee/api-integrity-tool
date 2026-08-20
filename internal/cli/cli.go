@@ -102,6 +102,9 @@ monitoring:
 	ack         acknowledge a finding
 	mute        silence a finding for a while
 
+viewing:
+	serve       run the results dashboard (alias: --view-results)
+
 agents:
 	mcp         serve the Model Context Protocol over stdio
 
@@ -123,8 +126,11 @@ func Main(env Env) int {
 	// --view-results is documented as a top-level flag because that is how a
 	// human naturally reaches for it; it is an alias for "serve --open".
 	if env.Args[0] == "--view-results" || env.Args[0] == "-view-results" {
-		fmt.Fprintln(env.Stderr, "the results server arrives in a later phase; run `scan` and `list` for now")
-		return ExitError
+		if err := runServe(env, append([]string{"--open"}, env.Args[1:]...)); err != nil {
+			fmt.Fprintf(env.Stderr, "error: %v\n", err)
+			return ExitError
+		}
+		return ExitOK
 	}
 
 	cmd, rest := env.Args[0], env.Args[1:]
@@ -160,6 +166,8 @@ func Main(env Env) int {
 		err = runDoctor(env, rest)
 	case "mcp":
 		err = runMCP(env, rest)
+	case "serve":
+		err = runServe(env, rest)
 	case "version":
 		fmt.Fprintln(env.Stdout, Version())
 	case "help", "-h", "--help":

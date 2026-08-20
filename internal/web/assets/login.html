@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>API integrity — sign in</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header><h1>API integrity</h1></header>
+<main>
+  <p class="detail">This dashboard needs the one-time link printed by the command that started it:</p>
+  <pre>api-integrity-tool --view-results</pre>
+  <p class="detail">Open the <code>http://127.0.0.1:6969/login?t=…</code> URL it prints. The token is
+  valid only while that process is running.</p>
+</main>
+</body>
+</html>
