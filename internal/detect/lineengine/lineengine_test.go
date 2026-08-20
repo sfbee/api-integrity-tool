@@ -497,3 +497,209 @@ end
 		"GET api.example.com/api/v1/users",
 	)
 }
+
+func TestJavaHttpClientsAndRestTemplate(t *testing.T) {
+	t.Parallel()
+	src := `
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import org.springframework.web.client.RestTemplate;
+
+public class Client {
+    private static final String BASE = "https://api.example.com";
+
+    public void fetch() {
+        HttpRequest req = HttpRequest.newBuilder()
+            .uri(URI.create(BASE + "/api/v1/things"))
+            .build();
+    }
+
+    public void viaTemplate(RestTemplate rt) {
+        rt.getForObject(BASE + "/api/v1/users", String.class);
+        rt.postForEntity("https://api.example.com/api/v1/orders", body, String.class);
+    }
+}
+`
+	got := endpoints(t, NewJava(), "Client.java", src)
+	has(t, got,
+		"GET api.example.com/api/v1/users",
+		"POST api.example.com/api/v1/orders",
+	)
+	// The builder chain sets the method elsewhere, so the URI call itself has
+	// no determinable verb. What matters is that the endpoint is found.
+	has(t, got, "ANY api.example.com/api/v1/things")
+}
+
+func TestJavaApacheAndRetrofit(t *testing.T) {
+	t.Parallel()
+	src := `
+import org.apache.http.client.methods.HttpGet;
+import retrofit2.http.GET;
+import retrofit2.Retrofit;
+
+public class Mixed {
+    void apache() {
+        HttpGet g = new HttpGet("https://api.example.com/apache/thing");
+    }
+}
+
+interface Service {
+    @GET("/api/v1/retrofit/users")
+    Call<List<User>> listUsers();
+
+    @POST("/api/v1/retrofit/users")
+    Call<User> create(@Body User u);
+}
+`
+	got := endpoints(t, NewJava(), "Mixed.java", src)
+	has(t, got,
+		"GET api.example.com/apache/thing",
+		// This interface declares no baseUrl, so the host is genuinely unknown
+		// from this file alone and the path stays relative. Retrofit supplies
+		// the base at Retrofit.Builder() call sites elsewhere.
+		"GET self/api/v1/retrofit/users",
+		"POST self/api/v1/retrofit/users",
+	)
+}
+
+// The sharpest discrimination in Java: @GetMapping("/users") is an OUTBOUND
+// call on a Feign interface and an INBOUND route on a Spring controller. The
+// syntax is identical; only the surrounding annotation distinguishes them.
+func TestJavaFeignIsOutboundSpringControllerIsNot(t *testing.T) {
+	t.Parallel()
+	feign := `
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+
+@FeignClient(name = "billing", url = "https://api.acme.com")
+public interface BillingClient {
+    @GetMapping("/api/v1/invoices")
+    List<Invoice> listInvoices();
+}
+`
+	has(t, endpoints(t, NewJava(), "BillingClient.java", feign),
+		"GET api.acme.com/api/v1/invoices")
+
+	controller := `
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class UserController {
+    @GetMapping("/api/v1/users")
+    public List<User> list() { return users; }
+
+    @PostMapping("/api/v1/users")
+    public User create(@RequestBody User u) { return u; }
+}
+`
+	got := endpoints(t, NewJava(), "UserController.java", controller)
+	if len(got) != 0 {
+		t.Errorf("Spring controller routes read as outbound calls: %v", got)
+	}
+}
+
+func TestCSharpHttpClient(t *testing.T) {
+	t.Parallel()
+	src := `
+using System.Net.Http;
+using System.Net.Http.Json;
+
+public class Client {
+    private const string Base = "https://api.example.com";
+    private readonly HttpClient _http;
+
+    public async Task Fetch(string id) {
+        await _http.GetAsync(Base + "/api/v1/things");
+        await _http.PostAsync("https://api.example.com/api/v1/orders", content);
+        await _http.GetStringAsync(Base + "/api/v1/raw");
+        await _http.GetFromJsonAsync<Thing>($"{Base}/api/v1/things/{id}");
+    }
+}
+`
+	got := endpoints(t, NewCSharp(), "Client.cs", src)
+	has(t, got,
+		"GET api.example.com/api/v1/things",
+		"POST api.example.com/api/v1/orders",
+		"GET api.example.com/api/v1/raw",
+		"GET api.example.com/api/v1/things/{id}",
+	)
+}
+
+// A BaseAddress supplies the host for every relative path on that client, the
+// same role axios.create plays in JavaScript.
+func TestCSharpBaseAddressBinding(t *testing.T) {
+	t.Parallel()
+	src := `
+using System.Net.Http;
+
+public class Api {
+    private readonly HttpClient client = new HttpClient();
+
+    public Api() {
+        client.BaseAddress = new Uri("https://api.acme.com/v2/");
+    }
+
+    public async Task Add() {
+        await client.PostAsync("/users/add", null);
+    }
+}
+`
+	has(t, endpoints(t, NewCSharp(), "Api.cs", src), "POST api.acme.com/v2/users/add")
+}
+
+// Refit's [Get("/x")] is outbound; ASP.NET's [HttpGet("/x")] is a route. The
+// Refit pattern requires "[" immediately before the verb so it cannot match
+// [HttpGet(...)].
+func TestCSharpRefitIsOutboundControllerIsNot(t *testing.T) {
+	t.Parallel()
+	refit := `
+using Refit;
+
+public interface IBillingApi {
+    [Get("/api/v1/invoices")]
+    Task<List<Invoice>> ListInvoices();
+
+    [Post("/api/v1/invoices")]
+    Task<Invoice> Create([Body] Invoice i);
+}
+`
+	// No base is registered in this file, so the paths stay relative; the host
+	// arrives from AddRefitClient configuration elsewhere.
+	has(t, endpoints(t, NewCSharp(), "IBillingApi.cs", refit),
+		"GET self/api/v1/invoices", "POST self/api/v1/invoices")
+
+	controller := `
+using Microsoft.AspNetCore.Mvc;
+
+[ApiController]
+public class UsersController : ControllerBase {
+    [HttpGet("/api/v1/users")]
+    public IActionResult List() => Ok(users);
+
+    [HttpPost("/api/v1/users")]
+    public IActionResult Create(User u) => Ok(u);
+}
+`
+	got := endpoints(t, NewCSharp(), "UsersController.cs", controller)
+	if len(got) != 0 {
+		t.Errorf("ASP.NET controller routes read as outbound calls: %v", got)
+	}
+}
+
+func TestCSharpVerbatimAndInterpolatedStrings(t *testing.T) {
+	t.Parallel()
+	src := `
+using System.Net.Http;
+public class C {
+    public async Task F(HttpClient h, string id) {
+        await h.GetAsync(@"https://api.example.com/verbatim/path");
+        await h.GetAsync($"https://api.example.com/interp/{id}");
+    }
+}
+`
+	has(t, endpoints(t, NewCSharp(), "C.cs", src),
+		"GET api.example.com/verbatim/path",
+		"GET api.example.com/interp/{id}",
+	)
+}

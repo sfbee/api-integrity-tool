@@ -239,7 +239,16 @@ func (r *Resolver) Resolve(e *detect.Expr) []Resolution {
 func (r *Resolver) ResolveWithBase(e *detect.Expr, instance string) []Resolution {
 	res := r.Resolve(e)
 	base, ok := r.Bindings[instance]
-	if !ok || instance == "" {
+	if !ok {
+		// Fall back to the file's default binding. Some clients declare their
+		// base once for a whole file rather than per instance -- a Retrofit or
+		// Refit interface, a Feign @FeignClient(url=...), an HTTParty
+		// base_uri -- and those are recorded under the empty key. Without this
+		// fallback every call from such a client resolves as a bare relative
+		// path with no host.
+		base, ok = r.Bindings[""]
+	}
+	if !ok || base == nil {
 		return res
 	}
 	baseAlts := r.Resolve(base)

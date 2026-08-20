@@ -95,6 +95,8 @@ func DefaultRegistry() *detect.Registry {
 	r.Register(lineengine.NewPython())
 	r.Register(lineengine.NewPerl())
 	r.Register(lineengine.NewRuby())
+	r.Register(lineengine.NewJava())
+	r.Register(lineengine.NewCSharp())
 	return r
 }
 
