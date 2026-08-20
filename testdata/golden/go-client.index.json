@@ -1,0 +1,351 @@
+{
+  "schema_version": 1,
+  "tool": {
+    "name": "api-integrity-tool",
+    "version": "test",
+    "detector_version": 1
+  },
+  "repo": {
+    "root": "go-client"
+  },
+  "scan": {
+    "id": "s_c1334813b041",
+    "commit": "0000000000000000000000000000000000000000",
+    "dirty": false,
+    "branch": "main",
+    "started_at": "2026-01-02T03:04:05Z",
+    "duration_ms": 0,
+    "partial": false
+  },
+  "stats": {
+    "files_walked": 5,
+    "files_scanned": 4,
+    "files_skipped": {
+      "excluded": 2,
+      "gitignored": 1,
+      "unknown_extension": 1
+    },
+    "bytes_scanned": 2527,
+    "sites_detected": 14,
+    "sites_dropped": {
+      "local_host": 1,
+      "route_definition": 5,
+      "test_file": 1
+    },
+    "by_language": {
+      "go": 14
+    },
+    "parse_errors": 0,
+    "unresolved_top": [
+      "arg:userID",
+      "env:SEARCH_BASE_URL"
+    ]
+  },
+  "hosts": [
+    {
+      "host_key": "${env:SEARCH_BASE_URL}",
+      "host_kind": "env",
+      "call_count": 1,
+      "path_count": 1,
+      "methods": [
+        "GET"
+      ],
+      "languages": [
+        "go"
+      ],
+      "max_confidence": "medium"
+    },
+    {
+      "host_key": "api.acme.example.com",
+      "host_kind": "literal",
+      "call_count": 2,
+      "path_count": 2,
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "languages": [
+        "go"
+      ],
+      "max_confidence": "high"
+    },
+    {
+      "host_key": "api.stripe.com",
+      "host_kind": "literal",
+      "call_count": 3,
+      "path_count": 3,
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "languages": [
+        "go"
+      ],
+      "max_confidence": "high"
+    },
+    {
+      "host_key": "audit.acme.example.com",
+      "host_kind": "literal",
+      "call_count": 1,
+      "path_count": 1,
+      "methods": [
+        "POST"
+      ],
+      "languages": [
+        "go"
+      ],
+      "max_confidence": "high"
+    }
+  ],
+  "calls": [
+    {
+      "id": "c_76938e106ba26112",
+      "fingerprint": "f_078eb2dae66da4d3",
+      "host": "api.acme.example.com",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "POST",
+      "path": "/api/v1/user/add",
+      "kind": "http",
+      "raw_expr": "http.NewRequestWithContext(ctx, \"POST\", c.baseURL+\"/api/v1/user/add\")",
+      "location": {
+        "file": "internal/billing/client.go",
+        "line": 26,
+        "column": 12,
+        "function": "Client.AddUser"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.NewRequestWithContext",
+      "detector": "go/ast",
+      "confidence": "high",
+      "score": 95,
+      "flags": [
+        "explicit_method",
+        "fully_literal_url"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c1334813b041",
+        "first_seen_commit": "0000000000000000000000000000000000000000",
+        "last_seen_scan": "s_c1334813b041",
+        "last_seen_commit": "0000000000000000000000000000000000000000",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_e29fb1e4d2430e9d",
+      "fingerprint": "f_26ed9cff71dd48db",
+      "host": "api.acme.example.com",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "GET",
+      "path": "/api/v1/users/{user_id}",
+      "path_vars": [
+        {
+          "token": "{user_id}",
+          "source": "userID"
+        }
+      ],
+      "kind": "http",
+      "raw_expr": "c.hc.Get(fmt.Sprintf(\"%s/api/v1/users/%s\", c.baseURL, userID))",
+      "location": {
+        "file": "internal/billing/client.go",
+        "line": 31,
+        "column": 2,
+        "function": "Client.GetUser"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.client.method",
+      "detector": "go/ast",
+      "confidence": "high",
+      "score": 85,
+      "flags": [
+        "explicit_method",
+        "host_from_binding"
+      ],
+      "unresolved": [
+        "arg:userID"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c1334813b041",
+        "first_seen_commit": "0000000000000000000000000000000000000000",
+        "last_seen_scan": "s_c1334813b041",
+        "last_seen_commit": "0000000000000000000000000000000000000000",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_9aaaa9dc6627251a",
+      "fingerprint": "f_00185339f7de7d0c",
+      "host": "api.stripe.com",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "GET",
+      "path": "/v1/invoices",
+      "kind": "http",
+      "raw_expr": "http.Get(stripeBase + \"/v1/invoices\")",
+      "location": {
+        "file": "internal/billing/client.go",
+        "line": 35,
+        "column": 2,
+        "function": "Client.ListInvoices"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "high",
+      "score": 95,
+      "flags": [
+        "explicit_method",
+        "fully_literal_url"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c1334813b041",
+        "first_seen_commit": "0000000000000000000000000000000000000000",
+        "last_seen_scan": "s_c1334813b041",
+        "last_seen_commit": "0000000000000000000000000000000000000000",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_305ba3624a69ee10",
+      "fingerprint": "f_d20324aba408013b",
+      "host": "api.stripe.com",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "POST",
+      "path": "/v1/charges",
+      "kind": "http",
+      "raw_expr": "http.Post(stripeBase+\"/v1/charges\", \"application/json\", nil)",
+      "location": {
+        "file": "internal/billing/client.go",
+        "line": 39,
+        "column": 2,
+        "function": "Client.CreateCharge"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "high",
+      "score": 95,
+      "flags": [
+        "explicit_method",
+        "fully_literal_url"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c1334813b041",
+        "first_seen_commit": "0000000000000000000000000000000000000000",
+        "last_seen_scan": "s_c1334813b041",
+        "last_seen_commit": "0000000000000000000000000000000000000000",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_2b2f3e0b05e6ba1b",
+      "fingerprint": "f_3db1bbfa4b8112e7",
+      "host": "${env:SEARCH_BASE_URL}",
+      "host_kind": "env",
+      "method": "GET",
+      "path": "/search",
+      "kind": "http",
+      "raw_expr": "http.Get(os.Getenv(\"SEARCH_BASE_URL\") + \"/search\")",
+      "location": {
+        "file": "internal/billing/client.go",
+        "line": 44,
+        "column": 2,
+        "function": "Client.Search"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "medium",
+      "score": 60,
+      "flags": [
+        "explicit_method",
+        "symbolic_host"
+      ],
+      "unresolved": [
+        "env:SEARCH_BASE_URL"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c1334813b041",
+        "first_seen_commit": "0000000000000000000000000000000000000000",
+        "last_seen_scan": "s_c1334813b041",
+        "last_seen_commit": "0000000000000000000000000000000000000000",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_a1af64cd50374d42",
+      "fingerprint": "f_c58b685b7a0202b4",
+      "host": "api.stripe.com",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "GET",
+      "path": "/v1/reports",
+      "kind": "http",
+      "raw_expr": "http.Get(u)",
+      "location": {
+        "file": "internal/billing/client.go",
+        "line": 49,
+        "column": 2,
+        "function": "Client.Reports"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "high",
+      "score": 95,
+      "flags": [
+        "explicit_method",
+        "fully_literal_url"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c1334813b041",
+        "first_seen_commit": "0000000000000000000000000000000000000000",
+        "last_seen_scan": "s_c1334813b041",
+        "last_seen_commit": "0000000000000000000000000000000000000000",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_420a305c40728109",
+      "fingerprint": "f_601114545a6724ba",
+      "host": "audit.acme.example.com",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "POST",
+      "path": "/api/v2/events",
+      "kind": "http",
+      "raw_expr": "http.Post(auditBase+\"/v2/events\", \"application/json\", nil)",
+      "location": {
+        "file": "internal/billing/consts.go",
+        "line": 10,
+        "column": 2,
+        "function": "PostAudit"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "high",
+      "score": 95,
+      "flags": [
+        "explicit_method",
+        "fully_literal_url"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c1334813b041",
+        "first_seen_commit": "0000000000000000000000000000000000000000",
+        "last_seen_scan": "s_c1334813b041",
+        "last_seen_commit": "0000000000000000000000000000000000000000",
+        "status": "active"
+      }
+    }
+  ]
+}

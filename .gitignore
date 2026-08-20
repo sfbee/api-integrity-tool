@@ -1,0 +1,11 @@
+# Built binary
+/api-integrity-tool
+
+# The tool's own state when it is run against this repo. index.json is meant to
+# be committed in a consuming repo, but this repo is the tool, not a consumer.
+/.api-integrity/
+
+*.log
+
+# macOS
+.DS_Store

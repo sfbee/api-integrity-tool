@@ -1,0 +1,72 @@
+[
+  {
+    "file": "cmd/server/routes.go",
+    "line": 15,
+    "reason": "route_definition",
+    "pattern": "go.route.HandleFunc",
+    "language": "go",
+    "host": "self",
+    "path": "/api/v1/inbound",
+    "src": "http.HandleFunc(\"/api/v1/inbound\", nil)"
+  },
+  {
+    "file": "cmd/server/routes.go",
+    "line": 18,
+    "reason": "route_definition",
+    "pattern": "go.route.HandleFunc",
+    "language": "go",
+    "host": "self",
+    "path": "/api/v1/mux-route",
+    "src": "m.HandleFunc(\"/api/v1/mux-route\", nil)"
+  },
+  {
+    "file": "cmd/server/routes.go",
+    "line": 21,
+    "reason": "route_definition",
+    "pattern": "go.route.GET",
+    "language": "go",
+    "host": "self",
+    "path": "/api/v1/gin-route",
+    "src": "g.GET(\"/api/v1/gin-route\", nil)"
+  },
+  {
+    "file": "cmd/server/routes.go",
+    "line": 22,
+    "reason": "route_definition",
+    "pattern": "go.route.POST",
+    "language": "go",
+    "host": "self",
+    "path": "/api/v1/gin-route",
+    "src": "g.POST(\"/api/v1/gin-route\", nil)"
+  },
+  {
+    "file": "cmd/server/routes.go",
+    "line": 25,
+    "reason": "route_definition",
+    "pattern": "go.receiver.method",
+    "language": "go",
+    "host": "self",
+    "path": "/api/v1/chi-route",
+    "src": "r.Get(\"/api/v1/chi-route\", func(w http.ResponseWriter, req *http.Request) {})"
+  },
+  {
+    "file": "internal/billing/client.go",
+    "line": 54,
+    "reason": "local_host",
+    "pattern": "net/http.pkgfunc",
+    "language": "go",
+    "host": "localhost",
+    "path": "/debug/ping",
+    "src": "http.Get(\"http://localhost:8080/debug/ping\")"
+  },
+  {
+    "file": "internal/billing/client_test.go",
+    "line": 11,
+    "reason": "test_file",
+    "pattern": "net/http.pkgfunc",
+    "language": "go",
+    "host": "api.test-only.example.com",
+    "path": "/never/indexed",
+    "src": "http.Get(\"https://api.test-only.example.com/never/indexed\")"
+  }
+]
