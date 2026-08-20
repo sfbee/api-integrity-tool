@@ -84,11 +84,21 @@ usage:
 	api-integrity-tool <command> [flags]
 	api-integrity-tool --view-results
 
-commands:
-	scan     index the outbound API calls in a repository
-	list     query the indexed calls
-	hosts    show API hosts and their upstream link status
-	version  print the version
+indexing:
+	scan        index the outbound API calls in a repository
+	list        query the indexed calls
+	hosts       show API hosts and their call counts
+
+upstream repositories:
+	link-hosts  link every scanned host it can, and report what it cannot
+	link        link one host to a repository
+	unlink      remove a host's links
+	unmonitor   record that a host is deliberately not watched
+	upstreams   show the current links and decisions
+
+other:
+	config      init or show .api-integrity.yml
+	version     print the version
 
 run "api-integrity-tool <command> -h" for a command's flags.
 `
@@ -116,6 +126,18 @@ func Main(env Env) int {
 		err = runList(env, rest)
 	case "hosts":
 		err = runHosts(env, rest)
+	case "link":
+		err = runLink(env, rest)
+	case "unlink":
+		err = runUnlink(env, rest)
+	case "unmonitor":
+		err = runUnmonitor(env, rest)
+	case "link-hosts":
+		err = runSyncLinks(env, rest)
+	case "upstreams":
+		err = runUpstreams(env, rest)
+	case "config":
+		err = runConfig(env, rest)
 	case "version":
 		fmt.Fprintln(env.Stdout, Version())
 	case "help", "-h", "--help":
