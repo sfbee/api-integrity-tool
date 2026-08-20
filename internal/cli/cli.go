@@ -102,6 +102,9 @@ monitoring:
 	ack         acknowledge a finding
 	mute        silence a finding for a while
 
+agents:
+	mcp         serve the Model Context Protocol over stdio
+
 other:
 	config      init or show .api-integrity.yml
 	doctor      report configuration, credentials and rate limits
@@ -155,6 +158,8 @@ func Main(env Env) int {
 		err = runMute(env, rest)
 	case "doctor":
 		err = runDoctor(env, rest)
+	case "mcp":
+		err = runMCP(env, rest)
 	case "version":
 		fmt.Fprintln(env.Stdout, Version())
 	case "help", "-h", "--help":

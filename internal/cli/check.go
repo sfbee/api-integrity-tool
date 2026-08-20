@@ -11,7 +11,6 @@ import (
 	"github.com/stephen-bee/endpoint-monitor/internal/ghsource"
 	"github.com/stephen-bee/endpoint-monitor/internal/model"
 	"github.com/stephen-bee/endpoint-monitor/internal/monitor"
-	"github.com/stephen-bee/endpoint-monitor/internal/store"
 )
 
 // newGitHubSource builds the live client from configuration and environment.
@@ -388,13 +387,4 @@ func runDoctor(env Env, args []string) error {
 			core.Remaining, core.Limit, core.Reset.Format(time.Kitchen))
 	}
 	return nil
-}
-
-// storeFor is used by commands that only need state access.
-func storeFor(env Env, repoPath string) (*store.Store, error) {
-	l, _, err := newLinker(env, repoPath)
-	if err != nil {
-		return nil, err
-	}
-	return l.Store, nil
 }
