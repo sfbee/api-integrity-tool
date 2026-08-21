@@ -389,3 +389,26 @@ func TestParameterHostsAreDistinguishedFromUnknownSymbols(t *testing.T) {
 		t.Errorf("got %q, want %q", render(got[0]), want)
 	}
 }
+
+// A variable's own name describes the path segment; the function that produced
+// its value does not. "$keyid = trimmed(...)" must yield {keyid}, not {trimmed}.
+func TestOpaqueValueKeepsTheSymbolName(t *testing.T) {
+	t.Parallel()
+	syms := NewSymbolTable([]detect.SymbolDef{
+		{Name: "keyid", Scope: detect.ScopeFile, Value: detect.Call("trimmed", detect.Sym("cgi"))},
+		{Name: "region", Scope: detect.ScopeFile, Value: detect.Env("AWS_REGION", nil)},
+	})
+	r := &Resolver{Symbols: syms}
+
+	got := r.Resolve(detect.Concat(detect.Lit("/keys/"), detect.Sym("keyid")))
+	if want := "/keys/<call:trimmed|keyid>"; render(got[0]) != want {
+		t.Errorf("got %q, want %q", render(got[0]), want)
+	}
+
+	// A value that already carries a meaningful name keeps it: the env var name
+	// is more specific than the variable holding it.
+	got = r.Resolve(detect.Concat(detect.Lit("/r/"), detect.Sym("region")))
+	if want := "/r/<env:AWS_REGION|AWS_REGION>"; render(got[0]) != want {
+		t.Errorf("got %q, want %q", render(got[0]), want)
+	}
+}

@@ -80,6 +80,12 @@ type Signature struct {
 	// RequireInstance restricts the signature to receivers that were bound to a
 	// client base URL, which is how axios.create() instances are tracked.
 	RequireInstance bool
+	// RequireVerbArg only accepts the match when the method argument is a real
+	// HTTP verb. It replaces an import gate for shapes like
+	// "$client->request(GET => $url)", where the client is often a project-local
+	// wrapper class rather than a recognizable CPAN module -- so the verb itself
+	// is the evidence, and "$db->request(SELECT => ...)" is correctly ignored.
+	RequireVerbArg bool
 	// RouteIfHandlerArg marks the site as a route definition when any argument
 	// looks like a handler function.
 	RouteIfHandlerArg bool
@@ -176,12 +182,28 @@ type Spec struct {
 	// SelfNames are receiver names that refer to the enclosing object, so
 	// "self.base_url" can be recorded as a type-scoped symbol.
 	SelfNames []string
+	// FatComma treats "=>" as an argument separator. In Perl it is exactly a
+	// synonym for a comma, so request(GET => $url) passes two arguments, not
+	// one. Without this the whole argument list collapses into a single string
+	// and every positional signature silently fails to match.
+	FatComma bool
 	// FuncRe locates the enclosing function via submatch "name".
 	FuncRe *regexp.Regexp
+	// PackageRe locates the file's package or class via submatch "name". It
+	// qualifies self-references: "$self->{base}" in Acme::LicenseAPI and the same
+	// expression in Acme::BillingAPI are different hosts, and collapsing
+	// them would attribute one service's endpoints to another.
+	PackageRe *regexp.Regexp
 }
 
 // Detector adapts a Spec to detect.Detector.
-type Detector struct{ spec *Spec }
+//
+// selfPrefix is per-file state. Detect takes its receiver by value and sets it
+// on that copy, so concurrent Detect calls never share it.
+type Detector struct {
+	spec       *Spec
+	selfPrefix string
+}
 
 // NewDetector returns a detector for spec.
 func NewDetector(spec *Spec) Detector { return Detector{spec: spec} }
@@ -199,6 +221,7 @@ func (d Detector) Spec() *Spec { return d.spec }
 func (d Detector) Detect(ctx context.Context, f *detect.SourceFile) (*detect.FileResult, error) {
 	res := &detect.FileResult{}
 	src := string(f.Content)
+	d.selfPrefix = d.packageName(src, f.RelPath)
 	// Comments are blanked rather than removed so every offset still maps to the
 	// original line, which is what keeps reported line numbers honest.
 	code := blankNonCode(src, d.spec)
@@ -346,7 +369,7 @@ func (d Detector) collectSymbols(code string, res *detect.FileResult) {
 				fn = d.enclosingFunc(code, loc[0])
 			}
 			res.Symbols = append(res.Symbols, detect.SymbolDef{
-				Name:     name,
+				Name:     d.qualifySelf(normalizeIdent(name, d.spec)),
 				Scope:    scope,
 				Func:     fn,
 				Value:    d.parseExpr(value),
@@ -355,6 +378,44 @@ func (d Detector) collectSymbols(code string, res *detect.FileResult) {
 			})
 		}
 	}
+}
+
+// packageName returns the qualifier for self-references in this file: the
+// declared package or class if there is one, otherwise the file's base name,
+// which is still unique per file and so still disambiguates.
+func (d Detector) packageName(src, relPath string) string {
+	if d.spec.PackageRe != nil {
+		if m := d.spec.PackageRe.FindStringSubmatch(src); m != nil {
+			if n := submatch(d.spec.PackageRe, m, "name"); n != "" {
+				return n
+			}
+		}
+	}
+	base := relPath
+	if i := strings.LastIndexByte(base, '/'); i >= 0 {
+		base = base[i+1:]
+	}
+	if i := strings.IndexByte(base, '.'); i > 0 {
+		base = base[:i]
+	}
+	return base
+}
+
+// qualifySelf rewrites a self-reference to include its package, so the symbol
+// is unique across the repository.
+func (d Detector) qualifySelf(name string) string {
+	if d.selfPrefix == "" {
+		return name
+	}
+	for _, self := range d.spec.SelfNames {
+		if name == self {
+			return d.selfPrefix
+		}
+		if strings.HasPrefix(name, self+".") {
+			return d.selfPrefix + "." + strings.TrimPrefix(name, self+".")
+		}
+	}
+	return name
 }
 
 func (d Detector) isSelfQualified(name string) bool {
@@ -468,6 +529,9 @@ func (d Detector) matchSignature(sig *Signature, code string, imports importSet,
 			continue
 		}
 		site.MethodExpr = d.methodFromArgs(sig, code, loc, args)
+		if sig.RequireVerbArg && !isHTTPVerbExpr(site.MethodExpr) {
+			continue
+		}
 
 		switch {
 		case sig.AlwaysRoute:
@@ -565,6 +629,17 @@ func constVerb(arg string) string {
 		return strings.ToUpper(t)
 	}
 	return ""
+}
+
+// httpVerbs are the methods that count as evidence of an HTTP call.
+var httpVerbs = map[string]bool{
+	"GET": true, "HEAD": true, "POST": true, "PUT": true, "PATCH": true,
+	"DELETE": true, "OPTIONS": true, "TRACE": true, "CONNECT": true,
+}
+
+// isHTTPVerbExpr reports whether e is a literal HTTP method.
+func isHTTPVerbExpr(e *detect.Expr) bool {
+	return e != nil && e.Kind == detect.ExprLit && httpVerbs[strings.ToUpper(e.Text)]
 }
 
 func containsAny(s string, needles []string) bool {

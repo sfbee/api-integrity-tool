@@ -49,6 +49,7 @@ func pythonSpec() *Spec {
 		HandlerHints: []string{"lambda"},
 		SelfNames:    []string{"self", "cls"},
 		FuncRe:       regexp.MustCompile(`(?m)^\s*(?:async\s+)?def\s+(?P<name>\w+)`),
+		PackageRe:    regexp.MustCompile(`(?m)^\s*class\s+(?P<name>\w+)`),
 		EnvRe: []*regexp.Regexp{
 			regexp.MustCompile(`^os\.environ\[\s*['"](?P<name>\w+)['"]\s*\]$`),
 			regexp.MustCompile(`^os\.environ\.get\(\s*['"](?P<name>\w+)['"].*\)$`),

@@ -326,6 +326,16 @@ func sliceArgs(src string, open int, spec *Spec) ([]string, int, bool) {
 				start = i + 1
 			}
 			i++
+		case '=':
+			// Perl's fat comma is a comma. Only "=>" counts; "==" and ">=" must
+			// not split an argument.
+			if spec.FatComma && depth == 1 && byteAt(src, i+1) == '>' {
+				args = appendArg(args, src[start:i])
+				start = i + 2
+				i += 2
+				continue
+			}
+			i++
 		default:
 			i++
 		}

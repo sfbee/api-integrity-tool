@@ -39,18 +39,20 @@ func perlSpec() *Spec {
 		ServerImports: map[string]detect.Framework{
 			"Mojolicious": "mojolicious", "Dancer": "dancer", "Catalyst": "catalyst", "Plack": "plack",
 		},
+		FatComma:     true,
 		ConcatOps:    []string{"."},
 		FormatCalls:  []string{"sprintf"},
 		JoinCalls:    []string{"join"},
 		HandlerHints: []string{"sub {", "sub{", "=> sub"},
 		SelfNames:    []string{"$self", "self"},
 		FuncRe:       regexp.MustCompile(`(?m)^\s*sub\s+(?P<name>\w+)`),
+		PackageRe:    regexp.MustCompile(`(?m)^\s*package\s+(?P<name>[\w:]+)`),
 		EnvRe: []*regexp.Regexp{
 			regexp.MustCompile(`^\$ENV\{\s*['"]?(?P<name>\w+)['"]?\s*\}$`),
 		},
 		Symbols: []SymbolPattern{
-			{Re: regexp.MustCompile(`\bmy\s+\$(?P<name>\w+)\s*=\s*(?P<value>[^;\n]+)`), Scope: detect.ScopeFile},
-			{Re: regexp.MustCompile(`\bour\s+\$(?P<name>\w+)\s*=\s*(?P<value>[^;\n]+)`), Scope: detect.ScopeFile},
+			{Re: regexp.MustCompile(`\bmy\s+\$(?P<name>\w+)\s*=\s*(?:my\s+\$\w+\s*=\s*)*(?P<value>[^;\n]+)`), Scope: detect.ScopeFile},
+			{Re: regexp.MustCompile(`\bour\s+\$(?P<name>\w+)\s*=\s*(?:our\s+\$\w+\s*=\s*)*(?P<value>[^;\n]+)`), Scope: detect.ScopeFile},
 			{Re: regexp.MustCompile(`\buse\s+constant\s+(?P<name>\w+)\s*=>\s*(?P<value>[^;\n]+)`), Scope: detect.ScopeFile, Constant: true},
 			{Re: regexp.MustCompile(`(?P<name>\$self->\{\s*\w+\s*\})\s*=\s*(?P<value>[^;\n]+)`), Scope: detect.ScopeType},
 		},
@@ -64,6 +66,16 @@ func perlSpec() *Spec {
 				Head:   regexp.MustCompile(`(?P<recv>\$\w+)\s*->\s*(?P<verb>get|post|put|delete|head|patch|options)`),
 				URLArg: 0, MethodArg: -1, MinArgs: 1,
 				RequireText: clients,
+			},
+			{
+				// "$ua->request(GET => $url)" and its simple_request variant.
+				// LWP's own request() takes an HTTP::Request object rather than a
+				// method and URL, but the two-argument form is the dominant
+				// convention in wrapper classes built on top of it.
+				ID: "perl.ua.request", Client: "perl-http",
+				Head:      regexp.MustCompile(`(?P<recv>\$\w+(?:->\{\s*\w+\s*\})?)\s*->\s*(?:simple_)?request`),
+				MethodArg: 0, URLArg: 1, MinArgs: 2,
+				RequireVerbArg: true,
 			},
 			{
 				ID: "perl.request.new", Client: "HTTP::Request",

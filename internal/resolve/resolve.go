@@ -399,6 +399,19 @@ func (s *state) evalSymbol(e *detect.Expr, depth int) [][]Segment {
 			break
 		}
 	}
+	// When a name resolves to a single unreadable value, the name itself is the
+	// better placeholder. "$keyid = trimmed($cgi->param('keyid'))" should yield
+	// /keys/{keyid}, not /keys/{trimmed}: the variable says what the segment
+	// means, while the function that produced it says nothing about the endpoint.
+	for i := range out {
+		if len(out[i]) != 1 || out[i][0].Kind != SegHole {
+			continue
+		}
+		h := &out[i][0]
+		if h.Name == "" || strings.HasPrefix(h.Sym, "call:") {
+			h.Name = lastIdent(name)
+		}
+	}
 	return out
 }
 

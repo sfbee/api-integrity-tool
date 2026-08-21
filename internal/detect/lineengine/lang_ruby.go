@@ -38,6 +38,7 @@ func rubySpec() *Spec {
 		HandlerHints: []string{"do |", "->", "lambda", "proc", "to:"},
 		SelfNames:    []string{"self", "@"},
 		FuncRe:       regexp.MustCompile(`(?m)^\s*def\s+(?P<name>[\w.?!=]+)`),
+		PackageRe:    regexp.MustCompile(`(?m)^\s*(?:class|module)\s+(?P<name>[\w:]+)`),
 		EnvRe: []*regexp.Regexp{
 			regexp.MustCompile(`^ENV\[\s*['"](?P<name>\w+)['"]\s*\]$`),
 			regexp.MustCompile(`^ENV\.fetch\(\s*['"](?P<name>\w+)['"].*\)$`),

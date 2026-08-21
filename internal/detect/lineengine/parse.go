@@ -67,7 +67,7 @@ func (d Detector) parseExprDepth(text string, depth int) *detect.Expr {
 	}
 
 	if isIdentifierPath(t) {
-		return detect.Sym(normalizeIdent(t, d.spec))
+		return detect.Sym(d.qualifySelf(normalizeIdent(t, d.spec)))
 	}
 	return detect.Unknown(t)
 }
@@ -134,8 +134,10 @@ func (d Detector) callExpr(callee string, args []string, src string, depth int) 
 	case "encodeuricomponent", "encodeuri", "quote", "quote_plus", "urlencode",
 		"escape", "pathescape", "strip", "trim", "rstrip", "chomp", "tostring", "to_s", "str",
 		// Wrappers that carry a URL without changing it: URI.create(s),
-		// new Uri(s), HttpUrl.parse(s), URI(s).
-		"create", "parse", "uri", "url", "valueof", "fromhttpurl", "newinstance":
+		// new Uri(s), HttpUrl.parse(s), URI->new(s), URI(s). "new" is broad,
+		// but parseExpr is only ever called on a URL or method argument
+		// position, where a constructor is virtually always wrapping the URL.
+		"create", "parse", "uri", "url", "valueof", "fromhttpurl", "newinstance", "new":
 		if len(args) == 1 {
 			return d.parseExprDepth(args[0], depth+1)
 		}

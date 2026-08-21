@@ -703,3 +703,122 @@ public class C {
 		"GET api.example.com/interp/{id}",
 	)
 }
+
+// Perl's "=>" is a synonym for a comma. Without treating it as an argument
+// separator the whole list collapses into one string and every positional
+// signature silently fails to match.
+func TestPerlFatCommaAndRequest(t *testing.T) {
+	t.Parallel()
+	got := endpoints(t, NewPerl(), "lib/Acme/LicenseAPI.pm", `
+package Acme::LicenseAPI;
+use LWP::UserAgent ();
+
+sub retrieve_license_key {
+    my ($self, $id) = @_;
+    my $response = $self->request(GET => "$self->{base}/keys/$id");
+    return $response;
+}
+
+sub create_license_key {
+    my ($self) = @_;
+    return $self->request(
+       POST => "$self->{base}/keys?return-key-state=yes", [
+          'Content-Type' => 'application/json',
+       ]
+    );
+}
+
+sub terminate_license_key {
+    my ($self, $key) = @_;
+    return $self->request(DELETE => "$self->{base}/keys/$key");
+}
+`)
+	// The host is qualified by the declared package, so another class's
+	// $self->{base} is a different host rather than the same one.
+	has(t, got,
+		"GET ${sym:Acme::LicenseAPI.base}/keys/{id}",
+		"POST ${sym:Acme::LicenseAPI.base}/keys",
+		"DELETE ${sym:Acme::LicenseAPI.base}/keys/{key}",
+	)
+}
+
+// The two-argument HTTP::Request->new form depends on the same fat comma.
+func TestPerlHTTPRequestNewFatComma(t *testing.T) {
+	t.Parallel()
+	got := endpoints(t, NewPerl(), "lib/Client.pm", `
+package Client;
+use HTTP::Request ();
+my $url = "https://api.example.com/v1/thing";
+my $req = HTTP::Request->new(GET => $url);
+`)
+	has(t, got, "GET api.example.com/v1/thing")
+}
+
+// The verb gate is what lets a project-local wrapper class be recognised without
+// hard-coding its name -- and what keeps a non-HTTP ->request out of the index.
+func TestPerlRequestRequiresAnHTTPVerb(t *testing.T) {
+	t.Parallel()
+	got := endpoints(t, NewPerl(), "lib/Db.pm", `
+package Db;
+my $sql = $db->request(SELECT => "users/all");
+my $job = $queue->request(ENQUEUE => "jobs/run");
+`)
+	if len(got) != 0 {
+		t.Errorf("got %v, want nothing: SELECT and ENQUEUE are not HTTP verbs", got)
+	}
+}
+
+func TestPerlLocalWrapperClassIsRecognised(t *testing.T) {
+	t.Parallel()
+	// No recognisable CPAN client is imported; the HTTP verb is the only
+	// evidence, and it is enough.
+	got := endpoints(t, NewPerl(), "public_html/tools/get_ka_license.cgi", `
+my $client = Acme::LicenseAPI->connect( section => "production" );
+my $response = $client->request(GET => $client->{base}."/keys/$keyid");
+`)
+	has(t, got, "GET ${sym:client.base}/keys/{keyid}")
+}
+
+// Perl allows chained declarations. The captured value must skip the inner
+// declarations, or it parses as an opaque call and yields a nonsense token.
+func TestPerlChainedDeclaration(t *testing.T) {
+	t.Parallel()
+	got := endpoints(t, NewPerl(), "t.cgi", `
+my $base = my $base_in = "https://api.example.com";
+my $r = $ua->request(GET => "$base/v1/x");
+`)
+	has(t, got, "GET api.example.com/v1/x")
+}
+
+// "$self->{base}" is a generic Perl idiom. Two classes using it are two
+// different services, and collapsing them would attribute one service's
+// endpoints to another -- which is exactly what happens in shared-client, where five
+// unrelated clients all spell their base URL that way.
+func TestPerlSelfBaseIsQualifiedByPackage(t *testing.T) {
+	t.Parallel()
+	lic := endpoints(t, NewPerl(), "lib/Acme/LicenseAPI.pm", `
+package Acme::LicenseAPI;
+use LWP::UserAgent ();
+my $r = $self->request(GET => "$self->{base}/keys");
+`)
+	other := endpoints(t, NewPerl(), "lib/Acme/BillingAPI.pm", `
+package Acme::BillingAPI;
+use LWP::UserAgent ();
+my $r = $self->request(GET => "$self->{base}/keys");
+`)
+	has(t, lic, "GET ${sym:Acme::LicenseAPI.base}/keys")
+	has(t, other, "GET ${sym:Acme::BillingAPI.base}/keys")
+	if lic[0] == other[0] {
+		t.Fatalf("two packages collapsed to the same host: %q", lic[0])
+	}
+}
+
+// With no package declaration the file name still disambiguates.
+func TestSelfQualifierFallsBackToTheFileName(t *testing.T) {
+	t.Parallel()
+	got := endpoints(t, NewPerl(), "public_html/tools/thing.cgi", `
+use LWP::UserAgent ();
+my $r = $self->request(GET => "$self->{base}/keys");
+`)
+	has(t, got, "GET ${sym:thing.base}/keys")
+}
