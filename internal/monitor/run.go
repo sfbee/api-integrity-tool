@@ -357,7 +357,7 @@ func checkUpstream(ctx context.Context, opts Options, st *store.State, u model.U
 		return res, nil
 	}
 
-	targets := targetsFor(opts.Index, u)
+	targets := targetsFor(opts.Index, u, opts.Config)
 	if len(targets.Targets) == 0 {
 		// Nothing in this repository depends on that upstream any more.
 		res.skipped = true
@@ -479,13 +479,13 @@ func latestRelease(ctx context.Context, opts Options, id ghsource.RepoID, res *u
 
 // targetsFor builds the endpoint target set for one upstream, honouring the
 // path prefix that scopes it.
-func targetsFor(idx *index.Index, u model.Upstream) *TargetSet {
+func targetsFor(idx *index.Index, u model.Upstream, cfg *config.File) *TargetSet {
 	if idx == nil {
 		return NewTargetSet(nil)
 	}
 	var calls []index.Call
 	for _, c := range idx.Calls {
-		if c.Host != u.Host {
+		if !hostMatches(cfg, c.Host, u.Host) {
 			continue
 		}
 		if !u.Matches(c.Path) {
@@ -494,6 +494,29 @@ func targetsFor(idx *index.Index, u model.Upstream) *TargetSet {
 		calls = append(calls, c)
 	}
 	return NewTargetSet(calls)
+}
+
+// hostMatches reports whether an indexed call belongs to an upstream.
+//
+// A call's recorded host is often symbolic -- "${sym:self.base}" when the base
+// URL is assembled at runtime from a config file. host_mappings is how the user
+// declares what such a symbol really is, so it has to be honoured here and not
+// only when filtering `list` output. Without this you would have to link an
+// internal variable name as though it were a hostname, and the link would break
+// the moment somebody renamed the variable.
+func hostMatches(cfg *config.File, callHost, upstreamHost string) bool {
+	if strings.EqualFold(callHost, upstreamHost) {
+		return true
+	}
+	if cfg == nil {
+		return false
+	}
+	for _, h := range cfg.ResolveHost(callHost) {
+		if strings.EqualFold(h, upstreamHost) {
+			return true
+		}
+	}
+	return false
 }
 
 func filterSeverity(fs []model.Finding, min model.Severity) []model.Finding {

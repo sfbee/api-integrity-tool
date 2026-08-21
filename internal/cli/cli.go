@@ -98,6 +98,7 @@ upstream repositories:
 
 monitoring:
 	check       look for upstream changes that would break your calls
+	coverage    report which called endpoints the upstream documents
 	findings    list what previous checks found
 	ack         acknowledge a finding
 	mute        silence a finding for a while
@@ -154,6 +155,8 @@ func Main(env Env) int {
 		err = runUpstreams(env, rest)
 	case "config":
 		err = runConfig(env, rest)
+	case "coverage":
+		err = runCoverage(env, rest)
 	case "check":
 		err = runCheck(env, rest)
 	case "findings":

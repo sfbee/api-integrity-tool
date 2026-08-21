@@ -55,6 +55,13 @@ type harness struct {
 
 func newHarness(t *testing.T, paths ...string) *harness {
 	t.Helper()
+	return newHarnessWithHost(t, "api.acme.com", paths...)
+}
+
+// newHarnessWithHost lets a test record calls under a host that differs from the
+// linked one, which is how a symbolic host behaves before mapping.
+func newHarnessWithHost(t *testing.T, callHost string, paths ...string) *harness {
+	t.Helper()
 	if len(paths) == 0 {
 		paths = []string{"/api/v1/invoices"}
 	}
@@ -73,7 +80,7 @@ func newHarness(t *testing.T, paths ...string) *harness {
 	var calls []index.Call
 	for i, p := range paths {
 		calls = append(calls, index.Call{
-			ID: "c" + string(rune('1'+i)), Host: "api.acme.com", Method: "GET", Path: p,
+			ID: "c" + string(rune('1'+i)), Host: callHost, Method: "GET", Path: p,
 			Score: 90, Kind: index.KindHTTP,
 			Location:  index.Location{File: "internal/client.go", Line: 10 + i},
 			Lifecycle: index.Lifecycle{Status: index.StatusActive},

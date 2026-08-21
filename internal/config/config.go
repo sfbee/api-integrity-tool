@@ -303,9 +303,11 @@ unmonitored: []
 #     reason: internal
 
 # What a symbolic host actually is. The scanner records a host read from an
-# environment variable as ${env:NAME} rather than guessing; this is where you
-# tell it the answer. Applied when querying, so editing it never rewrites the
-# index.
+# environment variable as ${env:NAME}, or assembled at runtime as
+# ${sym:Package.field}, rather than guessing; this is where you tell it the
+# answer. Used both when querying and when matching calls to an upstream, so a
+# symbolic host can be linked under its real hostname. Applied at read time, so
+# editing it never rewrites the index.
 host_mappings: {}
 #   "${env:BILLING_BASE_URL}": ["billing.acme.internal"]
 
