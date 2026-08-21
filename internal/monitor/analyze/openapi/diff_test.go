@@ -424,3 +424,97 @@ func kinds(cs []Change) []string {
 	}
 	return out
 }
+
+// Upstreams rename path parameters routinely. The endpoint is unchanged, so a
+// rename must not be reported as a removed path, a removed parameter, or a new
+// required parameter -- the last of which is a breaking signal and would raise a
+// false alarm on every caller of the path.
+func TestParameterRenameIsNotABreakingChange(t *testing.T) {
+	t.Parallel()
+	const before = `
+openapi: 3.0.0
+info: {version: 1.0.0}
+paths:
+  /keys/{keyNumberOrProductKey}/sso:
+    post:
+      parameters:
+        - {name: keyNumberOrProductKey, in: path, required: true, schema: {type: string}}
+      responses: {"200": {description: ok}}
+`
+	const after = `
+openapi: 3.0.0
+info: {version: 1.0.0}
+paths:
+  /keys/{keyNumberOrActivationCode}/sso:
+    post:
+      parameters:
+        - {name: keyNumberOrActivationCode, in: path, required: true, schema: {type: string}}
+      responses: {"200": {description: ok}}
+`
+	b, err := Parse([]byte(before))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := Parse([]byte(after))
+	if err != nil {
+		t.Fatal(err)
+	}
+	changes := Diff(b, h)
+
+	for _, c := range changes {
+		if c.Breaking {
+			t.Errorf("a parameter rename produced a breaking change: %s (%s)", c.Kind, c.Detail)
+		}
+		switch c.Kind {
+		case SignalPathRemoved, SignalOperationRemoved, SignalParamRemoved, SignalRequiredParamAdded:
+			t.Errorf("unexpected %s for a pure rename: %s", c.Kind, c.Detail)
+		}
+	}
+	var renamed bool
+	for _, c := range changes {
+		if c.Kind == SignalParamRenamed {
+			renamed = true
+			if c.Before != "/keys/{keyNumberOrProductKey}/sso" || c.After != "/keys/{keyNumberOrActivationCode}/sso" {
+				t.Errorf("rename should name both spellings, got %q -> %q", c.Before, c.After)
+			}
+		}
+	}
+	if !renamed {
+		t.Errorf("want a %s change, got %+v", SignalParamRenamed, kinds(changes))
+	}
+}
+
+// A genuine removal must still be reported as breaking.
+func TestRealPathRemovalIsStillBreaking(t *testing.T) {
+	t.Parallel()
+	const before = `
+openapi: 3.0.0
+info: {version: 1.0.0}
+paths:
+  /keys/{id}/sso:
+    post:
+      responses: {"200": {description: ok}}
+  /keys/{id}:
+    get:
+      responses: {"200": {description: ok}}
+`
+	const after = `
+openapi: 3.0.0
+info: {version: 1.0.0}
+paths:
+  /keys/{id}:
+    get:
+      responses: {"200": {description: ok}}
+`
+	b, _ := Parse([]byte(before))
+	h, _ := Parse([]byte(after))
+	var found bool
+	for _, c := range Diff(b, h) {
+		if c.Kind == SignalPathRemoved && c.Breaking {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("a genuinely removed path must still be reported as breaking")
+	}
+}

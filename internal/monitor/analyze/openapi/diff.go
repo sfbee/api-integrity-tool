@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,6 +46,7 @@ const (
 	SignalServerChanged      = "openapi.server_changed"
 	SignalAdditive           = "openapi.additive"
 	SignalMajorVersionBump   = "openapi.version_major_bump"
+	SignalParamRenamed       = "openapi.path_param_renamed"
 )
 
 // Diff compares two specifications and returns every structural change.
@@ -84,14 +86,31 @@ func Diff(base, head *Doc) []Change {
 	}
 
 	// Paths that disappeared entirely.
-	for p := range base.Paths {
-		if !head.Paths[p] {
-			out = append(out, Change{
-				Kind: SignalPathRemoved, Op: OpKey{Path: p},
-				Pointer: pathPointer(p), Before: p, Breaking: true,
-				Detail: "the path no longer exists in the specification",
-			})
+	//
+	// Comparison is on the normalized template, not the literal path. Renaming a
+	// path parameter -- /keys/{keyNumberOrProductKey} becoming
+	// /keys/{keyNumberOrActivationCode} -- changes the string but not the
+	// endpoint, and reporting that as a removal is a false alarm on every
+	// caller of the path. Upstreams rename parameters routinely.
+	headTemplates := templateIndex(head.Paths)
+	for _, p := range sortedKeys(base.Paths) {
+		if head.Paths[p] {
+			continue
 		}
+		tmpl := normalizeTemplate(p)
+		if renamed, ok := headTemplates[tmpl]; ok {
+			out = append(out, Change{
+				Kind: SignalParamRenamed, Op: OpKey{Path: p},
+				Pointer: pathPointer(p), Before: p, After: renamed,
+				Detail: "a path parameter was renamed; the endpoint is unchanged",
+			})
+			continue
+		}
+		out = append(out, Change{
+			Kind: SignalPathRemoved, Op: OpKey{Path: p},
+			Pointer: pathPointer(p), Before: p, Breaking: true,
+			Detail: "the path no longer exists in the specification",
+		})
 	}
 
 	baseKeys := sortedOps(base.Operations)
@@ -99,6 +118,14 @@ func Diff(base, head *Doc) []Change {
 		b := base.Operations[key]
 		h, ok := head.Operations[key]
 		if !ok {
+			// Follow a parameter rename to the operation that replaced it, so a
+			// rename is not reported again as an operation removal.
+			if renamed, isRename := headTemplates[normalizeTemplate(key.Path)]; isRename && !head.Paths[key.Path] {
+				if h2, ok2 := head.Operations[OpKey{Method: key.Method, Path: renamed}]; ok2 {
+					out = append(out, diffOperationOpts(b, h2, true)...)
+					continue
+				}
+			}
 			// A path-level removal already covers this case; only report the
 			// operation when the path itself survives, or the same break would
 			// be reported twice.
@@ -137,11 +164,24 @@ func Diff(base, head *Doc) []Change {
 }
 
 func diffOperation(b, h *Operation) []Change {
+	return diffOperationOpts(b, h, false)
+}
+
+// diffOperationOpts compares two operations. renamedPath suppresses path
+// parameter differences, which is required when the two operations were matched
+// through a parameter rename: the name changed but the position in the template
+// did not, so reporting a removal plus a new required parameter would describe
+// the same rename twice more -- and "new required parameter" is a breaking
+// signal, so it would raise a false alarm on an endpoint nothing happened to.
+func diffOperationOpts(b, h *Operation, renamedPath bool) []Change {
 	var out []Change
 	key := b.Key
 
 	// Parameters.
 	for name, bp := range b.Params {
+		if renamedPath && strings.EqualFold(bp.In, "path") {
+			continue
+		}
 		hp, ok := h.Params[name]
 		if !ok {
 			// Removing a parameter a caller sends is usually tolerated by
@@ -180,6 +220,9 @@ func diffOperation(b, h *Operation) []Change {
 	}
 	for name, hp := range h.Params {
 		if _, ok := b.Params[name]; ok {
+			continue
+		}
+		if renamedPath && strings.EqualFold(hp.In, "path") {
 			continue
 		}
 		if hp.Required {
@@ -382,6 +425,39 @@ func escapePointer(s string) string {
 }
 
 func pathPointer(p string) string { return "#/paths/" + escapePointer(p) }
+
+// paramRe matches an OpenAPI path parameter.
+var paramRe = regexp.MustCompile(`\{[^/}]*\}`)
+
+// normalizeTemplate collapses every path parameter to a bare "{}" so two
+// spellings of the same endpoint compare equal.
+func normalizeTemplate(p string) string { return paramRe.ReplaceAllString(p, "{}") }
+
+// templateIndex maps each normalized template to a path that has it. Only
+// parameterised paths can be renamed, so literal paths are skipped: they would
+// map to themselves and mask a real removal.
+func templateIndex(paths map[string]bool) map[string]string {
+	out := make(map[string]string, len(paths))
+	for _, p := range sortedKeys(paths) {
+		t := normalizeTemplate(p)
+		if t == p {
+			continue
+		}
+		if _, exists := out[t]; !exists {
+			out[t] = p
+		}
+	}
+	return out
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
 
 func opPointer(k OpKey) string {
 	return pathPointer(k.Path) + "/" + strings.ToLower(k.Method)
