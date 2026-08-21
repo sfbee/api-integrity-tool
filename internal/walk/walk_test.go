@@ -308,3 +308,100 @@ func TestIgnoreCommentsAndBlanks(t *testing.T) {
 		t.Errorf("Len = %d, want 0", s.Len())
 	}
 }
+
+func TestNormalizeInterpreter(t *testing.T) {
+	t.Parallel()
+	tests := map[string]string{
+		"perl": "perl", "perl5": "perl", "python": "python",
+		"python3": "python", "python3.11": "python", "ruby": "ruby",
+		"node": "node", "nodejs": "node", "node.exe": "node",
+		// Distributions rename interpreters freely. Vendor ships its Perl as
+		// vendor-perl, and matching only the bare name would skip every script
+		// in a Vendor codebase.
+		"vendor-perl": "perl", "vendor-python3": "python", "perl-static": "perl",
+		"bash": "bash", "sh": "sh",
+	}
+	for in, want := range tests {
+		if got := NormalizeInterpreter(in); got != want {
+			t.Errorf("NormalizeInterpreter(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestReadShebang(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{"direct", "#!/usr/bin/perl\nprint 1;\n", "perl"},
+		{"with flags", "#!/usr/bin/perl -w\nprint 1;\n", "perl"},
+		{"env form", "#!/usr/bin/env python3\nx = 1\n", "python"},
+		{"env with flags", "#!/usr/bin/env -S perl -w\nprint 1;\n", "perl"},
+		{"vendor build", "#!/usr/bin/vendor-perl\nprint 1;\n", "perl"},
+		{"crlf", "#!/usr/bin/ruby\r\nputs 1\r\n", "ruby"},
+		{"no shebang", "print 1;\n", ""},
+		{"empty", "", ""},
+		{"hash but not bang", "# just a comment\n", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			p := filepath.Join(t.TempDir(), "script")
+			if err := os.WriteFile(p, []byte(tc.content), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if got := ReadShebang(p); got != tc.want {
+				t.Errorf("ReadShebang = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// Real repositories keep executable programs with no file extension. Matching on
+// extension alone silently skips every one of them.
+func TestFindPicksUpExtensionlessScriptsByShebang(t *testing.T) {
+	t.Parallel()
+	root := tree(t, map[string]string{
+		"lib/mod.pm":      "package mod;",
+		"scripts/invoice": "#!/usr/bin/vendor-perl\nuse LWP::UserAgent;\n",
+		"scripts/deploy":  "#!/bin/bash\necho hi\n",
+		"README":          "not a script",
+	})
+	opts := Options{
+		Root:       root,
+		Extensions: map[string]bool{".pm": true},
+		Shebangs:   map[string]bool{"perl": true},
+	}
+	got, _, err := Find(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "lib/mod.pm,scripts/invoice"; strings.Join(paths(got), ",") != want {
+		t.Errorf("paths = %v, want %q", paths(got), want)
+	}
+	for _, c := range got {
+		if c.RelPath == "scripts/invoice" && c.Interp != "perl" {
+			t.Errorf("Interp = %q, want perl", c.Interp)
+		}
+	}
+}
+
+// Without a Shebangs set, sniffing is off entirely, so the extra I/O is opt-in.
+func TestFindDoesNotSniffWhenShebangsUnset(t *testing.T) {
+	t.Parallel()
+	root := tree(t, map[string]string{"scripts/invoice": "#!/usr/bin/perl\n"})
+	got, stats, err := Find(context.Background(), Options{
+		Root: root, Extensions: map[string]bool{".pm": true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Errorf("paths = %v, want none", paths(got))
+	}
+	if stats.Skipped[SkipUnknownExt] != 1 {
+		t.Errorf("unknown_extension = %d, want 1", stats.Skipped[SkipUnknownExt])
+	}
+}

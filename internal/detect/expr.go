@@ -381,6 +381,15 @@ type GroupDetector interface {
 	ResolveGroup(ctx context.Context, files []*SourceFile, results []*FileResult) []SymbolDef
 }
 
+// InterpreterLanguages maps a shebang interpreter to the language it runs.
+// Only interpreted languages appear here: a Go program is never a script.
+var InterpreterLanguages = map[string]Language{
+	"perl":   LangPerl,
+	"python": LangPython,
+	"ruby":   LangRuby,
+	"node":   LangJS,
+}
+
 // Registry maps languages and file extensions to detectors.
 type Registry struct {
 	byLang map[Language]Detector
@@ -422,6 +431,18 @@ func (r *Registry) Languages() []Language {
 		out = append(out, l)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+// Interpreters returns the shebang interpreter names whose language has a
+// registered detector, so the walker only sniffs files it could actually scan.
+func (r *Registry) Interpreters() map[string]bool {
+	out := map[string]bool{}
+	for name, lang := range InterpreterLanguages {
+		if _, ok := r.byLang[lang]; ok {
+			out[name] = true
+		}
+	}
 	return out
 }
 

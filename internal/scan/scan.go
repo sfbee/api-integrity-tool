@@ -141,6 +141,9 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	if len(wopts.ExcludeDirs) == 0 {
 		wopts.ExcludeDirs = defaultExcludeDirs()
 	}
+	if wopts.Shebangs == nil {
+		wopts.Shebangs = interpretersFor(reg, opts.Languages)
+	}
 
 	candidates, wstats, err := walk.Find(ctx, wopts)
 	if err != nil {
@@ -386,7 +389,7 @@ func detectOne(ctx context.Context, reg *detect.Registry, c walk.Candidate, root
 	err    error
 }) {
 	out.cand = c
-	det, ok := reg.ForExt(c.Ext)
+	det, ok := detectorFor(reg, c)
 	if !ok {
 		out.skip = walk.SkipUnknownExt
 		return out
@@ -421,6 +424,22 @@ func detectOne(ctx context.Context, reg *detect.Registry, c walk.Candidate, root
 	}
 	out.result = result
 	return out
+}
+
+// detectorFor picks the detector for a candidate, preferring the extension and
+// falling back to the interpreter named in the file's shebang.
+func detectorFor(reg *detect.Registry, c walk.Candidate) (detect.Detector, bool) {
+	if det, ok := reg.ForExt(c.Ext); ok {
+		return det, true
+	}
+	if c.Interp == "" {
+		return nil, false
+	}
+	lang, ok := detect.InterpreterLanguages[c.Interp]
+	if !ok {
+		return nil, false
+	}
+	return reg.ForLang(lang)
 }
 
 func resolveMethod(r *resolve.Resolver, site detect.RawSite) string {
@@ -465,6 +484,24 @@ func extensionsFor(reg *detect.Registry, langs []detect.Language) map[string]boo
 		}
 		if len(want) == 0 || want[d.Language()] {
 			out[ext] = true
+		}
+	}
+	return out
+}
+
+// interpretersFor returns the shebang interpreters to sniff for, honouring the
+// language filter. Without the filter check, "--lang perl" would still pull in
+// every Python and Ruby script that happens to lack an extension.
+func interpretersFor(reg *detect.Registry, langs []detect.Language) map[string]bool {
+	want := map[detect.Language]bool{}
+	for _, l := range langs {
+		want[l] = true
+	}
+	out := map[string]bool{}
+	for name := range reg.Interpreters() {
+		lang := detect.InterpreterLanguages[name]
+		if len(want) == 0 || want[lang] {
+			out[name] = true
 		}
 	}
 	return out

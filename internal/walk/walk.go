@@ -40,6 +40,11 @@ type Candidate struct {
 	AbsPath string
 	Size    int64
 	Ext     string
+	// Interp is the interpreter named in the file's shebang, set only when the
+	// file has no extension. Real repositories are full of executable scripts
+	// with no suffix -- myapp keeps three Perl programs that way -- and
+	// matching on extension alone skips every one of them.
+	Interp string
 }
 
 // Options configures a walk.
@@ -52,7 +57,11 @@ type Options struct {
 	// files. On by default because a scan that reports a dependency's calls as
 	// yours is worse than useless.
 	RespectGitignore bool
-	FollowSymlinks   bool
+	// Shebangs are the interpreter names worth reading, e.g. "perl". A file with
+	// no extension is sniffed only when this is non-empty, so the extra I/O is
+	// opt-in and bounded to extensionless files.
+	Shebangs       map[string]bool
+	FollowSymlinks bool
 	// ExcludeDirs are directory names pruned before descending, which is what
 	// makes a 50k-file repo cheap: node_modules is never entered.
 	ExcludeDirs []string
@@ -188,9 +197,20 @@ func Find(ctx context.Context, opts Options) ([]Candidate, Stats, error) {
 			return nil
 		}
 		ext := strings.ToLower(path.Ext(rel))
+		interp := ""
 		if len(opts.Extensions) > 0 && !opts.Extensions[ext] {
-			stats.skip(SkipUnknownExt)
-			return nil
+			// An extensionless file may still be a script. Only such files are
+			// sniffed: reading the head of every .md and .txt would cost real
+			// I/O for nothing.
+			if ext != "" || len(opts.Shebangs) == 0 {
+				stats.skip(SkipUnknownExt)
+				return nil
+			}
+			interp = ReadShebang(p)
+			if interp == "" || !opts.Shebangs[interp] {
+				stats.skip(SkipUnknownExt)
+				return nil
+			}
 		}
 		fi, statErr := d.Info()
 		if statErr != nil {
@@ -201,7 +221,7 @@ func Find(ctx context.Context, opts Options) ([]Candidate, Stats, error) {
 			stats.skip(SkipTooLarge)
 			return nil
 		}
-		out = append(out, Candidate{RelPath: rel, AbsPath: p, Size: fi.Size(), Ext: ext})
+		out = append(out, Candidate{RelPath: rel, AbsPath: p, Size: fi.Size(), Ext: ext, Interp: interp})
 		stats.Matched++
 		stats.Bytes += fi.Size()
 		return nil
@@ -232,6 +252,87 @@ func matchAnyGlob(rel string, globs []string) bool {
 		}
 	}
 	return false
+}
+
+// shebangBytes is how much of a file is read to find its interpreter. A shebang
+// is the first line by definition, so this is generous.
+const shebangBytes = 128
+
+// ReadShebang returns the normalized interpreter name from a file's shebang, or
+// "" when there is none. It handles the direct form ("#!/usr/bin/perl"), the
+// env form ("#!/usr/bin/env python3"), trailing flags ("#!/usr/bin/perl -w")
+// and version suffixes ("python3" -> "python").
+func ReadShebang(absPath string) string {
+	f, err := os.Open(absPath)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	buf := make([]byte, shebangBytes)
+	n, _ := f.Read(buf)
+	if n < 3 || buf[0] != '#' || buf[1] != '!' {
+		return ""
+	}
+	line := string(buf[2:n])
+	if i := strings.IndexAny(line, "\r\n"); i >= 0 {
+		line = line[:i]
+	}
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return ""
+	}
+	interp := path.Base(fields[0])
+	// "env perl" and "env -S perl -w": the real interpreter is the first field
+	// that is not a flag.
+	if interp == "env" {
+		interp = ""
+		for _, f := range fields[1:] {
+			if strings.HasPrefix(f, "-") || strings.Contains(f, "=") {
+				continue
+			}
+			interp = path.Base(f)
+			break
+		}
+		if interp == "" {
+			return ""
+		}
+	}
+	return NormalizeInterpreter(interp)
+}
+
+// knownInterpreters are the base names NormalizeInterpreter resolves to.
+var knownInterpreters = []string{"perl", "python", "ruby", "node"}
+
+// NormalizeInterpreter reduces an interpreter binary name to a bare language
+// name. It strips a trailing version ("python3.11" -> "python") and a vendor
+// prefix ("vendor-perl" -> "perl"), because distributions rename interpreters
+// freely: Vendor ships its Perl as /usr/bin/vendor-perl, and matching the
+// literal name "perl" alone would skip every script in a Vendor codebase.
+func NormalizeInterpreter(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	name = strings.TrimSuffix(name, ".exe")
+	if trimmed := strings.TrimRight(name, "0123456789."); trimmed != "" {
+		name = trimmed
+	}
+	if name == "nodejs" {
+		return "node"
+	}
+	for _, known := range knownInterpreters {
+		if name == known {
+			return known
+		}
+	}
+	// A vendor-prefixed or -suffixed build: take the component that names a
+	// language, e.g. "vendor-perl", "perl-static", "vendor-php-python".
+	for _, part := range strings.FieldsFunc(name, func(r rune) bool { return r == '-' || r == '_' }) {
+		part = strings.TrimRight(part, "0123456789.")
+		for _, known := range knownInterpreters {
+			if part == known {
+				return known
+			}
+		}
+	}
+	return name
 }
 
 // ContentSkipReason inspects file content for reasons a detector should not see
