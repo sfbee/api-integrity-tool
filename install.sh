@@ -244,7 +244,12 @@ echo "      $BIN_NAME --view-results  # open the dashboard on :6969"
 echo ""
 echo "    Run \`$BIN_NAME doctor\` to check configuration and credentials."
 
-if ! "$INSTALLED" doctor --repo-path "$PWD" 2>/dev/null | grep -q "github token: found"; then
+# Capture first, then match. Piping straight into `grep -q` makes grep exit as
+# soon as it matches, which sends SIGPIPE to doctor -- and under `pipefail` that
+# turns a successful match into a failed pipeline, so the note printed exactly
+# when a token *was* present.
+DOCTOR_OUT="$("$INSTALLED" doctor --repo-path "$PWD" 2>/dev/null || true)"
+if ! printf '%s\n' "$DOCTOR_OUT" | grep -q "github token: found"; then
 	echo ""
 	echo "    NOTE: no GitHub token was found. Everything except \`check\` works"
 	echo "          without one. To enable upstream checks, run:"
