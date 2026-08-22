@@ -1,0 +1,14 @@
+ I would like to create an mcp in Go that creates an index of either:
+
+- all external/web api calls made from the repo where my current working directory resides
+- the repo specified by an --repo-path argument on the cli
+
+I should also optionally be able to filter which calls are index, by either the vendor name/hostname, a regex, or individual endpoints specified in a config file or by a --endpoint arg (--endpoint=/api/v1/user/add for example)
+
+Once an index of all API calls being made from my repo is made, it should prompt for the github/git repo URLs that it will then use github mcp to monitor for changes to any code that might break the calls my repository depends upon. 
+
+the mcp should prompt for the github or git repo URLs for each of the APIs that are being in
+
+i should be able to view the results of any checks at anytime through a webserver the mcp runs on port 6969, which is setup with authencation when the admin asks to view the results through something like ./api-integrity-tool --view-results
+
+Please create integration tests, and an install script to go with it. 
