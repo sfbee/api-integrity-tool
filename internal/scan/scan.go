@@ -21,15 +21,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/classify"
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
-	"github.com/stephen-bee/endpoint-monitor/internal/detect/golang"
-	"github.com/stephen-bee/endpoint-monitor/internal/detect/lineengine"
-	"github.com/stephen-bee/endpoint-monitor/internal/gitmeta"
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/normalize"
-	"github.com/stephen-bee/endpoint-monitor/internal/resolve"
-	"github.com/stephen-bee/endpoint-monitor/internal/walk"
+	"github.com/sfbee/api-integrity-tool/internal/classify"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/detect/golang"
+	"github.com/sfbee/api-integrity-tool/internal/detect/lineengine"
+	"github.com/sfbee/api-integrity-tool/internal/gitmeta"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/normalize"
+	"github.com/sfbee/api-integrity-tool/internal/resolve"
+	"github.com/sfbee/api-integrity-tool/internal/walk"
 )
 
 // Options configures one scan.

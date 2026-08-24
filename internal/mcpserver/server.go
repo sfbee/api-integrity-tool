@@ -18,16 +18,16 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/config"
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource"
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/linker"
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
-	"github.com/stephen-bee/endpoint-monitor/internal/monitor"
-	"github.com/stephen-bee/endpoint-monitor/internal/query"
-	"github.com/stephen-bee/endpoint-monitor/internal/scan"
-	"github.com/stephen-bee/endpoint-monitor/internal/store"
+	"github.com/sfbee/api-integrity-tool/internal/config"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/linker"
+	"github.com/sfbee/api-integrity-tool/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/monitor"
+	"github.com/sfbee/api-integrity-tool/internal/query"
+	"github.com/sfbee/api-integrity-tool/internal/scan"
+	"github.com/sfbee/api-integrity-tool/internal/store"
 )
 
 // Why there is no elicitation here: on MCP protocol version 2026-07-28 a server

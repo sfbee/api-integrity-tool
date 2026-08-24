@@ -16,10 +16,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/normalize"
-	"github.com/stephen-bee/endpoint-monitor/internal/resolve"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/normalize"
+	"github.com/sfbee/api-integrity-tool/internal/resolve"
 )
 
 // Drop reasons. These are stable strings: they appear in Stats.SitesDropped and

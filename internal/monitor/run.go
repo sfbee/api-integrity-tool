@@ -18,11 +18,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/config"
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource"
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
-	"github.com/stephen-bee/endpoint-monitor/internal/store"
+	"github.com/sfbee/api-integrity-tool/internal/config"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/store"
 )
 
 // Options configures a check.

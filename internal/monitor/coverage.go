@@ -7,13 +7,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/config"
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource"
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
-	"github.com/stephen-bee/endpoint-monitor/internal/monitor/analyze"
-	"github.com/stephen-bee/endpoint-monitor/internal/monitor/analyze/openapi"
-	"github.com/stephen-bee/endpoint-monitor/internal/store"
+	"github.com/sfbee/api-integrity-tool/internal/config"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/monitor/analyze"
+	"github.com/sfbee/api-integrity-tool/internal/monitor/analyze/openapi"
+	"github.com/sfbee/api-integrity-tool/internal/store"
 )
 
 // SignalUndocumented marks an endpoint this repository calls that no upstream

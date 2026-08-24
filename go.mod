@@ -1,4 +1,4 @@
-module github.com/stephen-bee/endpoint-monitor
+module github.com/sfbee/api-integrity-tool
 
 go 1.27
 

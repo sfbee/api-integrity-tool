@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
 )
 
 // Tunables. These are deliberately small: every one of them bounds work that

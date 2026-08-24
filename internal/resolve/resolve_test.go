@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
 )
 
 // render turns a Resolution into a compact comparable string: literals as-is,

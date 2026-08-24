@@ -3,7 +3,7 @@ package monitor
 import (
 	"strings"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/model"
 )
 
 // Confidence thresholds. A finding below DropBelow is not reported at all

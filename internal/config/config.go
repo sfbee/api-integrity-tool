@@ -17,8 +17,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
-	"github.com/stephen-bee/endpoint-monitor/internal/upstream"
+	"github.com/sfbee/api-integrity-tool/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/upstream"
 )
 
 // FileNames are the accepted config file names, in search order.

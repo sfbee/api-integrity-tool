@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/model"
 )
 
 //go:embed wellknown/hosts.json

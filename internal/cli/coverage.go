@@ -7,7 +7,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/monitor"
+	"github.com/sfbee/api-integrity-tool/internal/monitor"
 )
 
 // runCoverage answers "which of the endpoints we call does the upstream

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource"
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource/ghtest"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource/ghtest"
 )
 
 // newClient builds a REST client pointed at a fake GitHub. Sleep is stubbed so

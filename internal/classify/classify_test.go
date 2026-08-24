@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
-	"github.com/stephen-bee/endpoint-monitor/internal/normalize"
-	"github.com/stephen-bee/endpoint-monitor/internal/resolve"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/normalize"
+	"github.com/sfbee/api-integrity-tool/internal/resolve"
 )
 
 func TestExcludedPaths(t *testing.T) {

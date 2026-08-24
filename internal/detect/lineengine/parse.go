@@ -3,7 +3,7 @@ package lineengine
 import (
 	"strings"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
 )
 
 // parseExpr translates one argument's source text into the shared IR.

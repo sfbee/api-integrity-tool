@@ -3,7 +3,7 @@ package lineengine
 import (
 	"regexp"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
 )
 
 // Text blocks must be listed before the plain quote so the longer delimiter

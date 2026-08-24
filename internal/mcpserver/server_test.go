@@ -11,10 +11,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/config"
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource"
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource/ghtest"
-	"github.com/stephen-bee/endpoint-monitor/internal/mcpserver"
+	"github.com/sfbee/api-integrity-tool/internal/config"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource/ghtest"
+	"github.com/sfbee/api-integrity-tool/internal/mcpserver"
 )
 
 var testTime = time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)

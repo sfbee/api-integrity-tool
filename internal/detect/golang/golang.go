@@ -26,7 +26,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
 )
 
 // Detector implements detect.Detector and detect.GroupDetector for Go.

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/model"
 )
 
 func fixedNow(t time.Time) func() time.Time { return func() time.Time { return t } }

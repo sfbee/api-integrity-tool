@@ -3,7 +3,7 @@ package lineengine
 import (
 	"regexp"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
 )
 
 // perlStrings covers interpolating and non-interpolating literals plus the qq

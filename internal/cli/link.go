@@ -10,12 +10,12 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/config"
-	"github.com/stephen-bee/endpoint-monitor/internal/gitmeta"
-	"github.com/stephen-bee/endpoint-monitor/internal/linker"
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
-	"github.com/stephen-bee/endpoint-monitor/internal/store"
-	"github.com/stephen-bee/endpoint-monitor/internal/upstream"
+	"github.com/sfbee/api-integrity-tool/internal/config"
+	"github.com/sfbee/api-integrity-tool/internal/gitmeta"
+	"github.com/sfbee/api-integrity-tool/internal/linker"
+	"github.com/sfbee/api-integrity-tool/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/store"
+	"github.com/sfbee/api-integrity-tool/internal/upstream"
 )
 
 // newLinker builds a linker for a repository, loading its config and store.

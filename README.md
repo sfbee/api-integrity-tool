@@ -27,8 +27,8 @@ Requires Go 1.27 or newer (as declared in `go.mod`). Pure Go: no CGO, and no
 dependencies beyond the MCP SDK and `yaml.v3`.
 
 ```sh
-git clone https://github.com/stephen-bee/endpoint-monitor
-cd endpoint-monitor
+git clone https://github.com/sfbee/api-integrity-tool
+cd api-integrity-tool
 ./install.sh
 ```
 

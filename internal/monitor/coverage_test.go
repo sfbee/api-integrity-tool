@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/config"
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource/ghtest"
-	"github.com/stephen-bee/endpoint-monitor/internal/monitor"
+	"github.com/sfbee/api-integrity-tool/internal/config"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource/ghtest"
+	"github.com/sfbee/api-integrity-tool/internal/monitor"
 )
 
 // kaSpec mirrors the shape of a real the upstream specification: the version prefix lives

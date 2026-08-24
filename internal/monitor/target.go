@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/model"
 )
 
 // Target is one of my endpoints, prepared for matching against upstream text.

@@ -3,7 +3,7 @@ package lineengine
 import (
 	"regexp"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
 )
 
 // pythonStrings lists f-strings and triple-quoted forms before the plain ones,

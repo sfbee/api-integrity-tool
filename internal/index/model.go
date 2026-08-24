@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
-	"github.com/stephen-bee/endpoint-monitor/internal/normalize"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/normalize"
 )
 
 // SchemaVersion is bumped for breaking changes to the on-disk shape. A newer

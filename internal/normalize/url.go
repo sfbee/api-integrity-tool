@@ -20,7 +20,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/resolve"
+	"github.com/sfbee/api-integrity-tool/internal/resolve"
 )
 
 // HostKind classifies what we know about a call's destination host. Keeping

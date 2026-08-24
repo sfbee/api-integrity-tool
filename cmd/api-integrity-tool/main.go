@@ -19,7 +19,7 @@ package main
 import (
 	"os"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/cli"
+	"github.com/sfbee/api-integrity-tool/internal/cli"
 )
 
 func main() {

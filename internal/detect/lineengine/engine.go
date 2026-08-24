@@ -30,7 +30,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
 )
 
 // noteAlwaysRoute marks a site that a server-framework DSL signature claimed.

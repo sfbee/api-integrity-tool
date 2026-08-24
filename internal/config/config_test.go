@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/model"
 )
 
 func write(t *testing.T, body string) string {

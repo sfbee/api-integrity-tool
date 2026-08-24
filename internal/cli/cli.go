@@ -23,13 +23,13 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/classify"
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/normalize"
-	"github.com/stephen-bee/endpoint-monitor/internal/query"
-	"github.com/stephen-bee/endpoint-monitor/internal/scan"
-	"github.com/stephen-bee/endpoint-monitor/internal/walk"
+	"github.com/sfbee/api-integrity-tool/internal/classify"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/normalize"
+	"github.com/sfbee/api-integrity-tool/internal/query"
+	"github.com/sfbee/api-integrity-tool/internal/scan"
+	"github.com/sfbee/api-integrity-tool/internal/walk"
 )
 
 // Exit codes. `check` uses 1 for "findings at or above the threshold" so it can

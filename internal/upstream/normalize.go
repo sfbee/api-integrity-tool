@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/model"
 )
 
 // ParseRepoRef accepts every spelling of a repository reference we expect a

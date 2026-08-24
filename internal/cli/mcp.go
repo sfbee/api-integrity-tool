@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/config"
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource"
-	"github.com/stephen-bee/endpoint-monitor/internal/gitmeta"
-	"github.com/stephen-bee/endpoint-monitor/internal/mcpserver"
+	"github.com/sfbee/api-integrity-tool/internal/config"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource"
+	"github.com/sfbee/api-integrity-tool/internal/gitmeta"
+	"github.com/sfbee/api-integrity-tool/internal/mcpserver"
 )
 
 // runMCP serves the Model Context Protocol over stdio.

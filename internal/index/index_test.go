@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
-	"github.com/stephen-bee/endpoint-monitor/internal/normalize"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/normalize"
 )
 
 func call(file string, line int, host, method, path string) Call {

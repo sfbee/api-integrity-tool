@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource"
-	"github.com/stephen-bee/endpoint-monitor/internal/ghsource/ghtest"
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
-	"github.com/stephen-bee/endpoint-monitor/internal/monitor"
-	"github.com/stephen-bee/endpoint-monitor/internal/store"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource"
+	"github.com/sfbee/api-integrity-tool/internal/ghsource/ghtest"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/monitor"
+	"github.com/sfbee/api-integrity-tool/internal/store"
 )
 
 var fixedTime = time.Date(2026, 4, 1, 9, 0, 0, 0, time.UTC)

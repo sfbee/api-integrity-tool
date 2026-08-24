@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/config"
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
-	"github.com/stephen-bee/endpoint-monitor/internal/normalize"
-	"github.com/stephen-bee/endpoint-monitor/internal/store"
+	"github.com/sfbee/api-integrity-tool/internal/config"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/normalize"
+	"github.com/sfbee/api-integrity-tool/internal/store"
 )
 
 func newLinker(t *testing.T, configBody string) (*Linker, string) {

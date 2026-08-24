@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/model"
 )
 
 // Version is the state schema version.

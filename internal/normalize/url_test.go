@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/resolve"
+	"github.com/sfbee/api-integrity-tool/internal/resolve"
 )
 
 func lit(s string) resolve.Segment { return resolve.Literal(s) }

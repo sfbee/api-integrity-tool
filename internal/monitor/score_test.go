@@ -3,7 +3,7 @@ package monitor
 import (
 	"testing"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/model"
 )
 
 func TestRateDemotesLowConfidence(t *testing.T) {

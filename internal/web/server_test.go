@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/model"
-	"github.com/stephen-bee/endpoint-monitor/internal/store"
-	"github.com/stephen-bee/endpoint-monitor/internal/web"
+	"github.com/sfbee/api-integrity-tool/internal/model"
+	"github.com/sfbee/api-integrity-tool/internal/store"
+	"github.com/sfbee/api-integrity-tool/internal/web"
 )
 
 var webTime = time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)

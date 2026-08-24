@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stephen-bee/endpoint-monitor/internal/detect"
-	"github.com/stephen-bee/endpoint-monitor/internal/index"
-	"github.com/stephen-bee/endpoint-monitor/internal/normalize"
+	"github.com/sfbee/api-integrity-tool/internal/detect"
+	"github.com/sfbee/api-integrity-tool/internal/index"
+	"github.com/sfbee/api-integrity-tool/internal/normalize"
 )
 
 func mk(host, method, path string, opts ...func(*index.Call)) index.Call {
