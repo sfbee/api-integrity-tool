@@ -792,7 +792,7 @@ my $r = $ua->request(GET => "$base/v1/x");
 
 // "$self->{base}" is a generic Perl idiom. Two classes using it are two
 // different services, and collapsing them would attribute one service's
-// endpoints to another -- which is exactly what happens in shared-client, where five
+// endpoints to another -- which is what happens in any library where several
 // unrelated clients all spell their base URL that way.
 func TestPerlSelfBaseIsQualifiedByPackage(t *testing.T) {
 	t.Parallel()

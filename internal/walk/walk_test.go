@@ -315,9 +315,9 @@ func TestNormalizeInterpreter(t *testing.T) {
 		"perl": "perl", "perl5": "perl", "python": "python",
 		"python3": "python", "python3.11": "python", "ruby": "ruby",
 		"node": "node", "nodejs": "node", "node.exe": "node",
-		// Distributions rename interpreters freely. Vendor ships its Perl as
-		// vendor-perl, and matching only the bare name would skip every script
-		// in a Vendor codebase.
+		// Distributions rename interpreters freely. A vendor build installed as
+		// vendor-perl never spells "perl" on its own, so matching only the bare
+		// name would skip every script in such a codebase.
 		"vendor-perl": "perl", "vendor-python3": "python", "perl-static": "perl",
 		"bash": "bash", "sh": "sh",
 	}

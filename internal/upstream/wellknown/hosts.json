@@ -45,7 +45,6 @@
     {"host": "api.vercel.com", "vendor": "Vercel", "repo": "github.com/vercel/vercel", "role": "implementation"},
     {"host": "api.netlify.com", "vendor": "Netlify", "repo": "github.com/netlify/open-api", "role": "spec_only"},
     {"host": "api.heroku.com", "vendor": "Heroku", "repo": "github.com/heroku/platform-api-reference", "role": "spec_only"},
-    {"host": "api.vendor.example", "vendor": "Vendor", "repo": "github.com/VendorInc/api-docs", "role": "spec_only"},
     {"host": "*.googleapis.com", "vendor": "Google", "repo": "github.com/googleapis/googleapis", "role": "spec_only"},
     {"host": "*.amazonaws.com", "vendor": "AWS", "repo": "github.com/aws/aws-sdk-js-v3", "role": "spec_only"},
     {"host": "management.azure.com", "vendor": "Azure", "repo": "github.com/Azure/azure-rest-api-specs", "role": "spec_only"},

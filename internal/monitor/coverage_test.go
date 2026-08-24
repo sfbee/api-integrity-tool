@@ -10,9 +10,9 @@ import (
 	"github.com/sfbee/api-integrity-tool/internal/monitor"
 )
 
-// kaSpec mirrors the shape of a real the upstream specification: the version prefix lives
+// vendorSpec mirrors the shape of a real published specification: the version prefix lives
 // in the server URL, and the path parameters are named nothing like ours.
-const kaSpec = `
+const vendorSpec = `
 openapi: 3.0.0
 info: {title: Partner API 3.0, version: 1.0.0}
 servers:
@@ -55,12 +55,12 @@ func (h *harness) tree(paths ...string) {
 func TestCoverageMatchesAcrossTheServerPrefix(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t,
-		"/keys", // relative, as a symbolic base yields
+		"/keys",                        // relative, as a symbolic base yields
 		"/api/partner/v3/keys/{keyid}", // absolute, prefix baked in
 	)
 	h.repo(fixedTime)
 	h.tree("assets/openapi/partner-v3-api.yml")
-	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", vendorSpec)
 
 	got := h.coverage(t)
 	if len(got) != 1 {
@@ -91,7 +91,7 @@ func TestCoverageIgnoresParameterNaming(t *testing.T) {
 	h := newHarness(t, "/keys/{my_own_name}")
 	h.repo(fixedTime)
 	h.tree("assets/openapi/partner-v3-api.yml")
-	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", vendorSpec)
 
 	r := h.coverage(t)[0]
 	if len(r.Undocumented()) != 0 {
@@ -104,7 +104,7 @@ func TestCoverageFlagsUndocumentedEndpoints(t *testing.T) {
 	h := newHarness(t, "/keys", "/keys/{id}/billable-usage", "/secret/backdoor")
 	h.repo(fixedTime)
 	h.tree("assets/openapi/partner-v3-api.yml")
-	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", vendorSpec)
 
 	res, findings, err := monitor.Coverage(context.Background(), monitor.CoverageOptions{
 		Store: h.store, Source: h.src, Index: h.idx,
@@ -160,7 +160,7 @@ paths:
 	h := newHarness(t, "/keys/{id}/upgrades")
 	h.repo(fixedTime)
 	h.tree("assets/openapi/partner-v3-api.yml", "assets/openapi/portal-v1-api.yml")
-	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", vendorSpec)
 	h.srv.Contents("acme", "billing", "assets/openapi/portal-v1-api.yml", "main", otherSpec)
 
 	r := h.coverage(t)[0]
@@ -209,7 +209,7 @@ func TestCoverageRunsWhenTheUpstreamHasNotMoved(t *testing.T) {
 	// path the check records in state -- so that is the path coverage will ask
 	// for. Serving anything else leaves the specification unreadable, which now
 	// correctly suppresses findings instead of producing false ones.
-	h.srv.Contents("acme", "billing", "openapi.yaml", "main", kaSpec)
+	h.srv.Contents("acme", "billing", "openapi.yaml", "main", vendorSpec)
 
 	// Establish state, then re-run the change-driven check: it skips.
 	h.baseline()
@@ -235,7 +235,7 @@ func TestCoverageResolvesSymbolicHostsViaMappings(t *testing.T) {
 	h := newHarnessWithHost(t, "${sym:self.base}", "/keys")
 	h.repo(fixedTime)
 	h.tree("assets/openapi/partner-v3-api.yml")
-	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", vendorSpec)
 
 	// Without a mapping the upstream sees no endpoints at all.
 	res, _, err := monitor.Coverage(context.Background(), monitor.CoverageOptions{
@@ -305,7 +305,7 @@ func TestCoverageReportsNothingWhenOnlySomeSpecificationsCanBeRead(t *testing.T)
 	h := newHarness(t, "/secret/backdoor")
 	h.repo(fixedTime)
 	h.tree("assets/openapi/partner-v3-api.yml", "assets/openapi/isv-v2-api.yml")
-	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", vendorSpec)
 	// isv-v2-api.yml is listed in the tree but never served.
 
 	res, findings, err := monitor.Coverage(context.Background(), monitor.CoverageOptions{
@@ -333,7 +333,7 @@ func TestCoverageStillReportsWhenEverySpecificationIsReadable(t *testing.T) {
 	h := newHarness(t, "/secret/backdoor")
 	h.repo(fixedTime)
 	h.tree("assets/openapi/partner-v3-api.yml")
-	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", vendorSpec)
 
 	res, findings, err := monitor.Coverage(context.Background(), monitor.CoverageOptions{
 		Store: h.store, Source: h.src, Index: h.idx,
@@ -350,16 +350,17 @@ func TestCoverageStillReportsWhenEverySpecificationIsReadable(t *testing.T) {
 }
 
 // Specification paths are matched by filename, so the set routinely contains
-// files that were never specifications: the upstream ships two component-only schemas
-// under assets/openapi. Those parse as "not an OpenAPI document" and must not
-// be mistaken for specifications the monitor failed to read, or the real the upstream
-// repository would report "coverage undetermined" on every single run.
+// files that were never specifications: a repository will happily keep
+// component-only schema fragments beside its specifications. Those parse as
+// "not an OpenAPI document" and must not be mistaken for specifications the
+// monitor failed to read, or an upstream that ships even one such fragment
+// would report "coverage undetermined" on every single run.
 func TestCoverageIgnoresFilesThatWereNeverSpecifications(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t, "/secret/backdoor")
 	h.repo(fixedTime)
 	h.tree("assets/openapi/partner-v3-api.yml", "assets/openapi/schema.yaml")
-	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", vendorSpec)
 	// A components-only fragment: valid YAML, no openapi key, no paths.
 	h.srv.Contents("acme", "billing", "assets/openapi/schema.yaml", "main",
 		"components:\n  schemas:\n    Key:\n      type: object\n")

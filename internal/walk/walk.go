@@ -42,8 +42,8 @@ type Candidate struct {
 	Ext     string
 	// Interp is the interpreter named in the file's shebang, set only when the
 	// file has no extension. Real repositories are full of executable scripts
-	// with no suffix -- myapp keeps three Perl programs that way -- and
-	// matching on extension alone skips every one of them.
+	// with no suffix -- a repository will keep whole Perl programs that way --
+	// and matching on extension alone skips every one of them.
 	Interp string
 }
 
@@ -306,8 +306,9 @@ var knownInterpreters = []string{"perl", "python", "ruby", "node"}
 // NormalizeInterpreter reduces an interpreter binary name to a bare language
 // name. It strips a trailing version ("python3.11" -> "python") and a vendor
 // prefix ("vendor-perl" -> "perl"), because distributions rename interpreters
-// freely: Vendor ships its Perl as /usr/bin/vendor-perl, and matching the
-// literal name "perl" alone would skip every script in a Vendor codebase.
+// freely: a vendor that ships its own build as /usr/bin/vendor-perl would
+// otherwise have every one of its scripts skipped, since the shebang never
+// names "perl" on its own.
 func NormalizeInterpreter(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 	name = strings.TrimSuffix(name, ".exe")

@@ -196,9 +196,10 @@ func coverUpstream(ctx context.Context, opts CoverageOptions, st *store.State, u
 		if err != nil || doc == nil {
 			// Not a read failure. Specification paths are chosen by filename, so
 			// this set always contains files that were never specifications --
-			// the upstream ships two component-only schemas under assets/openapi. They
-			// declare no operations and contribute nothing, which is different
-			// from a specification whose contents we could not obtain.
+			// a repository commonly keeps component-only schema fragments
+			// alongside its specifications. They declare no operations and
+			// contribute nothing, which is different from a specification whose
+			// contents we could not obtain.
 			continue
 		}
 		declared.add(p, doc)
