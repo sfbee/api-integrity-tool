@@ -24,6 +24,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/sfbee/api-integrity-tool/internal/classify"
+	"github.com/sfbee/api-integrity-tool/internal/config"
 	"github.com/sfbee/api-integrity-tool/internal/detect"
 	"github.com/sfbee/api-integrity-tool/internal/index"
 	"github.com/sfbee/api-integrity-tool/internal/normalize"
@@ -376,14 +377,24 @@ func runList(env Env, args []string) error {
 		return err
 	}
 
+	// Without the mappings, "--host api.example.com" finds nothing whenever the
+	// scanner recorded the host symbolically -- which is exactly the case for a
+	// base URL resolved at runtime, and exactly the host the user linked. The
+	// filter knows how to invert a mapping; it just has to be given one.
+	cfg, err := config.Load(root)
+	if err != nil {
+		return err
+	}
+
 	f := query.Filters{
 		Hosts: hosts, Vendors: vendors, Endpoints: endpoints, Regexes: regexes,
 		Methods: methods, Languages: languages,
 		MinConfidence:  index.Confidence(*minConf),
 		IncludeRemoved: *includeRemoved,
+		HostMappings:   cfg.HostMappings,
 	}
 	if len(exHosts) > 0 || len(exEndpoints) > 0 {
-		f.Exclude = &query.Filters{Hosts: exHosts, Endpoints: exEndpoints}
+		f.Exclude = &query.Filters{Hosts: exHosts, Endpoints: exEndpoints, HostMappings: cfg.HostMappings}
 	}
 	sel, err := query.Compile(f)
 	if err != nil {
