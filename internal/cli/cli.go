@@ -368,6 +368,7 @@ func runList(env Env, args []string) error {
 	fs.Var(&languages, "lang", "only this language (repeatable)")
 	fs.Var(&exHosts, "exclude-host", "exclude this host (repeatable)")
 	fs.Var(&exEndpoints, "exclude-endpoint", "exclude this endpoint (repeatable)")
+	rawHosts := fs.Bool("raw-hosts", false, "show the raw symbolic host instead of the hostname it maps to")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -408,8 +409,9 @@ func runList(env Env, args []string) error {
 	case "csv":
 		fmt.Fprintln(env.Stdout, "method,host,path,confidence,score,language,file,line")
 		for _, c := range matched {
+			host, _ := displayHost(c.Host, cfg, *rawHosts)
 			fmt.Fprintf(env.Stdout, "%s,%s,%s,%s,%d,%s,%s,%d\n",
-				c.Method, c.Host, c.Path, c.Confidence, c.Score, c.Language, c.Location.File, c.Location.Line)
+				c.Method, host, c.Path, c.Confidence, c.Score, c.Language, c.Location.File, c.Location.Line)
 		}
 		return nil
 	default:
@@ -419,16 +421,25 @@ func runList(env Env, args []string) error {
 		}
 		tw := tabwriter.NewWriter(env.Stdout, 0, 8, 2, ' ', 0)
 		fmt.Fprintln(tw, "METHOD\tHOST\tPATH\tCONF\tLANG\tLOCATION")
+		anyMapped := false
 		for _, c := range matched {
 			loc := fmt.Sprintf("%s:%d", c.Location.File, c.Location.Line)
 			marker := ""
 			if c.Lifecycle.Status == index.StatusRemoved {
 				marker = " (removed)"
 			}
+			host, mapped := displayHost(c.Host, cfg, *rawHosts)
+			if mapped {
+				host += "*"
+				anyMapped = true
+			}
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s%s\n",
-				c.Method, c.Host, c.Path, c.Confidence, c.Language, loc, marker)
+				c.Method, host, c.Path, c.Confidence, c.Language, loc, marker)
 		}
 		tw.Flush()
+		if anyMapped {
+			fmt.Fprintln(env.Stderr, "\n* hostname asserted by host_mappings, not observed in the code (--raw-hosts to see the symbol)")
+		}
 		fmt.Fprintf(env.Stderr, "\n%d of %d calls shown (index at %s)\n", len(matched), len(idx.Calls), shortSHA(idx.Scan.Commit))
 		_ = root
 		return nil
@@ -440,10 +451,15 @@ func runHosts(env Env, args []string) error {
 	repoPath := fs.String("repo-path", "", "repository to read (default: current directory)")
 	format := fs.String("format", "table", "output format: table or json")
 	unresolved := fs.Bool("unresolved", false, "only hosts that could not be resolved to a real hostname")
+	rawHosts := fs.Bool("raw-hosts", false, "show the raw symbolic host instead of the hostname it maps to")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	idx, _, err := loadIndex(env, *repoPath)
+	idx, root, err := loadIndex(env, *repoPath)
+	if err != nil {
+		return err
+	}
+	cfg, err := config.Load(root)
 	if err != nil {
 		return err
 	}
@@ -451,12 +467,19 @@ func runHosts(env Env, args []string) error {
 	if *unresolved {
 		var keep []index.HostGroup
 		for _, h := range groups {
-			if h.HostKind != normalize.HostLiteral {
-				keep = append(keep, h)
+			if h.HostKind == normalize.HostLiteral {
+				continue
 			}
+			// A symbol the user has already mapped is resolved, just not by the
+			// scanner. Listing it here would send them to fix what is fixed.
+			if _, mapped := displayHost(h.HostKey, cfg, *rawHosts); mapped {
+				continue
+			}
+			keep = append(keep, h)
 		}
 		groups = keep
 	}
+	groups = mergeMappedHosts(groups, idx.Calls, cfg, *rawHosts)
 	if *format == "json" {
 		return writeJSON(env.Stdout, groups)
 	}
@@ -466,12 +489,122 @@ func runHosts(env Env, args []string) error {
 	}
 	tw := tabwriter.NewWriter(env.Stdout, 0, 8, 2, ' ', 0)
 	fmt.Fprintln(tw, "HOST\tKIND\tCALLS\tPATHS\tMETHODS\tCONF")
+	anyMapped := false
 	for _, h := range groups {
+		host, mapped := displayHost(h.HostKey, cfg, *rawHosts)
+		kind := string(h.HostKind)
+		if mapped {
+			host += "*"
+			kind = "mapped"
+			anyMapped = true
+		}
 		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%s\t%s\n",
-			h.HostKey, h.HostKind, h.CallCount, h.PathCount, strings.Join(h.Methods, ","), h.MaxConfidence)
+			host, kind, h.CallCount, h.PathCount, strings.Join(h.Methods, ","), h.MaxConfidence)
 	}
 	tw.Flush()
+	if anyMapped {
+		fmt.Fprintln(env.Stderr, "\n* hostname asserted by host_mappings, not observed in the code (--raw-hosts to see the symbol)")
+	}
 	return nil
+}
+
+// mergeMappedHosts collapses the host groups that host_mappings resolves to the
+// same hostname. Several symbols routinely stand for one service -- a class
+// attribute in one file and a local variable in another -- and once both are
+// displayed as that hostname, leaving them as separate rows shows the same name
+// twice with different counts, which reads as a bug.
+//
+// Path counts are recomputed from the calls rather than added up, because the
+// two symbols may reach the same path and summing would double-count it.
+func mergeMappedHosts(groups []index.HostGroup, calls []index.Call, cfg *config.File, raw bool) []index.HostGroup {
+	shownFor := func(h string) string {
+		name, _ := displayHost(h, cfg, raw)
+		return name
+	}
+	order := []string{}
+	byShown := map[string]*index.HostGroup{}
+	paths := map[string]map[string]bool{}
+	methods := map[string]map[string]bool{}
+
+	for _, g := range groups {
+		name := shownFor(g.HostKey)
+		agg, ok := byShown[name]
+		if !ok {
+			c := g
+			byShown[name] = &c
+			order = append(order, name)
+			paths[name], methods[name] = map[string]bool{}, map[string]bool{}
+			agg = &c
+		} else {
+			agg.CallCount += g.CallCount
+			if confRank(g.MaxConfidence) > confRank(agg.MaxConfidence) {
+				agg.MaxConfidence = g.MaxConfidence
+			}
+		}
+		for _, m := range g.Methods {
+			methods[name][m] = true
+		}
+	}
+	for _, c := range calls {
+		name := shownFor(c.Host)
+		if _, ok := paths[name]; ok {
+			paths[name][c.Path] = true
+		}
+	}
+
+	out := make([]index.HostGroup, 0, len(order))
+	for _, name := range order {
+		g := byShown[name]
+		g.PathCount = len(paths[name])
+		g.Methods = sortedSet(methods[name])
+		out = append(out, *g)
+	}
+	return out
+}
+
+// confRank orders the confidence buckets so a merged group can keep the best
+// of its constituents.
+func confRank(c index.Confidence) int {
+	switch c {
+	case index.ConfHigh:
+		return 3
+	case index.ConfMedium:
+		return 2
+	default:
+		return 1
+	}
+}
+
+func sortedSet(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// displayHost renders a call's host for human output. A host the scanner could
+// only record symbolically -- a base URL assembled at runtime -- is shown as the
+// hostname the user mapped it to, because "${sym:Acme::LicenseAPI.base}" tells
+// you nothing about which service you are looking at.
+//
+// The substitution is marked rather than silent. It is an assertion from
+// configuration, not something the scanner observed, and the difference matters
+// when you are deciding whether to trust a finding.
+func displayHost(host string, cfg *config.File, raw bool) (shown string, mapped bool) {
+	if raw || cfg == nil {
+		return host, false
+	}
+	resolved := cfg.ResolveHost(host)
+	if len(resolved) == 0 || (len(resolved) == 1 && resolved[0] == host) {
+		return host, false
+	}
+	shown = resolved[0]
+	if len(resolved) > 1 {
+		shown = fmt.Sprintf("%s +%d", shown, len(resolved)-1)
+	}
+	return shown, true
 }
 
 func loadIndex(env Env, repoPath string) (*index.Index, string, error) {
