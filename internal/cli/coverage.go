@@ -55,26 +55,48 @@ func runCoverage(env Env, args []string) error {
 		return err
 	}
 
-	added, updated := 0, 0
-	if *record && len(findings) > 0 {
-		added, updated, err = l.Store.UpsertFindings(findings)
-		if err != nil {
-			return err
+	added, updated, resolved := 0, 0, 0
+	if *record {
+		if len(findings) > 0 {
+			added, updated, err = l.Store.UpsertFindings(findings)
+			if err != nil {
+				return err
+			}
+		}
+		// Coverage recomputes every endpoint each run, so a stored finding this
+		// run did not produce has stopped being true and is retracted. Only
+		// complete results qualify: after a failed specification fetch the run
+		// knows nothing, and retracting on that basis would erase real findings.
+		live := make(map[string]bool, len(findings))
+		for _, f := range findings {
+			live[f.Fingerprint] = true
+		}
+		for _, r := range results {
+			if r.Incomplete {
+				continue
+			}
+			n, err := l.Store.ResolveStale(monitor.SignalUndocumented, r.RepoKey, live,
+				"resolved: now declared in a specification, or no longer called")
+			if err != nil {
+				return err
+			}
+			resolved += n
 		}
 	}
 
 	if *format == "json" {
 		return writeJSON(env.Stdout, map[string]any{
-			"upstreams":        results,
-			"findings_added":   added,
-			"findings_updated": updated,
+			"upstreams":         results,
+			"findings_added":    added,
+			"findings_updated":  updated,
+			"findings_resolved": resolved,
 		})
 	}
-	printCoverage(env, results, *undocumentedOnly, added)
+	printCoverage(env, results, *undocumentedOnly, added, resolved)
 	return nil
 }
 
-func printCoverage(env Env, results []monitor.CoverageResult, undocumentedOnly bool, added int) {
+func printCoverage(env Env, results []monitor.CoverageResult, undocumentedOnly bool, added, resolved int) {
 	if len(results) == 0 {
 		fmt.Fprintln(env.Stderr, "no linked upstream has any indexed endpoints; run `scan` and `link` first")
 		return
@@ -88,7 +110,11 @@ func printCoverage(env Env, results []monitor.CoverageResult, undocumentedOnly b
 		if len(r.Specs) > 0 {
 			fmt.Fprintf(env.Stdout, "    %d specification(s): %s\n", len(r.Specs), strings.Join(r.Specs, ", "))
 		}
-		fmt.Fprintf(env.Stdout, "    %d endpoint(s) called, %d undocumented\n", len(r.Endpoints), len(undoc))
+		if r.Incomplete {
+			fmt.Fprintf(env.Stdout, "    %d endpoint(s) called, coverage undetermined\n", len(r.Endpoints))
+		} else {
+			fmt.Fprintf(env.Stdout, "    %d endpoint(s) called, %d undocumented\n", len(r.Endpoints), len(undoc))
+		}
 
 		rows := r.Endpoints
 		if undocumentedOnly {
@@ -103,6 +129,8 @@ func printCoverage(env Env, results []monitor.CoverageResult, undocumentedOnly b
 			status, by := "MISSING", "-"
 			if e.Documented {
 				status, by = "ok", e.Spec
+			} else if r.Incomplete {
+				status, by = "?", "unknown"
 			}
 			fmt.Fprintf(tw, "    %s\t%s\t%s\t%s\t%s\n", status, e.Method, e.Path, by, e.CallSite)
 		}
@@ -110,5 +138,8 @@ func printCoverage(env Env, results []monitor.CoverageResult, undocumentedOnly b
 	}
 	if added > 0 {
 		fmt.Fprintf(env.Stderr, "\n%d undocumented endpoint(s) recorded as findings\n", added)
+	}
+	if resolved > 0 {
+		fmt.Fprintf(env.Stderr, "%d previously recorded finding(s) no longer apply and were resolved\n", resolved)
 	}
 }

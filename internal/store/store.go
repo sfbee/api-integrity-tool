@@ -338,6 +338,13 @@ func (s *Store) UpsertFindings(fresh []model.Finding) (added int, updated int, e
 				e.Evidence = f.Evidence
 				e.Endpoints = f.Endpoints
 				e.Corroborated = e.Corroborated || f.Corroborated
+				// A resolved finding that is seen again was not resolved. This
+				// matters because ResolveStale closes findings automatically:
+				// without this, one bad run would bury a real finding for good.
+				if e.Status == model.StatusResolved {
+					e.Status = model.StatusOpen
+					e.StatusNote = "reopened: seen again"
+				}
 				// An acknowledged finding resurfaces only if it got worse.
 				if f.Severity.Rank() < e.Severity.Rank() {
 					e.Severity = f.Severity
@@ -361,6 +368,33 @@ func (s *Store) UpsertFindings(fresh []model.Finding) (added int, updated int, e
 		return nil
 	})
 	return added, updated, err
+}
+
+// ResolveStale closes findings of one signal, for one upstream, that a fresh
+// full recomputation no longer produces. State-driven signals such as
+// spec.undocumented are recomputed in their entirety on every run, so a stored
+// finding missing from live is not merely unchanged -- it has stopped being
+// true, and leaving it open reports something the upstream no longer does.
+//
+// Only ever call this with the output of a complete run. Handing it a partial
+// result would retract findings that are still perfectly valid.
+func (s *Store) ResolveStale(signal, repoKey string, live map[string]bool, note string) (resolved int, err error) {
+	err = s.Update(func(st *State) error {
+		now := s.now().UTC()
+		for i := range st.Findings {
+			f := &st.Findings[i]
+			if f.Signal != signal || f.Repo.Key() != repoKey {
+				continue
+			}
+			if f.Status == model.StatusResolved || live[f.Fingerprint] {
+				continue
+			}
+			f.Status, f.StatusNote, f.StatusBy, f.StatusAt = model.StatusResolved, note, "monitor", &now
+			resolved++
+		}
+		return nil
+	})
+	return resolved, err
 }
 
 // SetFindingStatus updates one finding's triage state.

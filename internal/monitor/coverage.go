@@ -69,6 +69,13 @@ type CoverageResult struct {
 	Endpoints []EndpointCoverage `json:"endpoints"`
 	// Note records why a result may be incomplete, e.g. no specifications found.
 	Note string `json:"note,omitempty"`
+	// RepoKey identifies the upstream for callers that need to reconcile
+	// previously recorded findings against this result.
+	RepoKey string `json:"-"`
+	// Incomplete means the specifications could not all be read, so the
+	// Documented flags below are a lower bound and no conclusion should be
+	// drawn from an endpoint appearing undocumented.
+	Incomplete bool `json:"incomplete,omitempty"`
 }
 
 // Undocumented returns only the endpoints no specification declares.
@@ -134,7 +141,7 @@ func coverUpstream(ctx context.Context, opts CoverageOptions, st *store.State, u
 		return nil, nil, nil
 	}
 	id := ghsource.RepoID{Owner: u.Repo.Owner, Name: u.Repo.Name}
-	out := &CoverageResult{Host: u.Host, Repo: u.Repo.Canonical()}
+	out := &CoverageResult{Host: u.Host, Repo: u.Repo.Canonical(), RepoKey: u.Repo.Key()}
 
 	ref := u.Repo.Ref
 	if ref == "" {
@@ -166,28 +173,38 @@ func coverUpstream(ctx context.Context, opts CoverageOptions, st *store.State, u
 	}
 
 	declared := newDeclaredSet()
+	// A specification we cannot read is not the same as a specification that
+	// does not declare an endpoint, and conflating the two is how an expired
+	// token turns into a page of false "undocumented" findings. Every failure
+	// is collected so the result can say so instead of guessing.
+	var unread []string
 	for _, p := range specPaths {
 		if !budget.take(1) {
-			break
+			unread = append(unread, p)
+			continue
 		}
 		fc, _, err := opts.Source.FileAtRef(ctx, id, p, ref, ghsource.Cond{})
 		if err != nil || fc == nil {
+			unread = append(unread, p)
 			continue
 		}
 		if !budget.take(int64(len(fc.Content))) {
+			unread = append(unread, p)
 			continue
 		}
 		doc, err := openapi.Parse(fc.Content)
 		if err != nil || doc == nil {
+			// Not a read failure. Specification paths are chosen by filename, so
+			// this set always contains files that were never specifications --
+			// the upstream ships two component-only schemas under assets/openapi. They
+			// declare no operations and contribute nothing, which is different
+			// from a specification whose contents we could not obtain.
 			continue
 		}
 		declared.add(p, doc)
 		out.Specs = append(out.Specs, p)
 	}
 	sort.Strings(out.Specs)
-	if len(out.Specs) == 0 {
-		out.Note = "specifications were found but none could be parsed"
-	}
 
 	for _, t := range targets.Targets {
 		cov := EndpointCoverage{
@@ -199,6 +216,16 @@ func coverUpstream(ctx context.Context, opts CoverageOptions, st *store.State, u
 		out.Endpoints = append(out.Endpoints, cov)
 	}
 	sortCoverage(out.Endpoints)
+
+	if len(unread) > 0 {
+		sort.Strings(unread)
+		out.Incomplete = true
+		out.Note = fmt.Sprintf(
+			"%d of %d specification(s) could not be fetched (%s), so an endpoint one of them "+
+				"declares would look undocumented; reporting nothing rather than guessing",
+			len(unread), len(specPaths), strings.Join(unread, ", "))
+		return out, nil, nil
+	}
 
 	var findings []model.Finding
 	for _, e := range out.Endpoints {

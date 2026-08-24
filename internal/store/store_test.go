@@ -269,3 +269,74 @@ func TestStateFileIsNotWorldReadable(t *testing.T) {
 		t.Errorf("state file mode = %04o, want no group or other access", perm)
 	}
 }
+
+// Coverage-style signals are recomputed in full every run, so a stored finding
+// the latest run did not produce has stopped being true. Leaving it open
+// reports something the upstream no longer does -- which is exactly what
+// happened when a failed specification fetch recorded twelve false findings and
+// the corrected run could not clear the seven that were wrong.
+func TestResolveStaleRetractsFindingsThatNoLongerApply(t *testing.T) {
+	t.Parallel()
+	s := newStore(t)
+	repo := model.RepoRef{Provider: "github", GitHost: "github.com", Owner: "acme", Name: "billing"}
+	other := model.RepoRef{Provider: "github", GitHost: "github.com", Owner: "acme", Name: "unrelated"}
+
+	stale := model.Finding{ID: "f1", Fingerprint: "fp1", Signal: "spec.undocumented", Repo: repo, Status: model.StatusOpen}
+	live := model.Finding{ID: "f2", Fingerprint: "fp2", Signal: "spec.undocumented", Repo: repo, Status: model.StatusOpen}
+	kept := model.Finding{ID: "f3", Fingerprint: "fp3", Signal: "openapi.path_removed", Repo: repo, Status: model.StatusOpen}
+	elsewhere := model.Finding{ID: "f4", Fingerprint: "fp4", Signal: "spec.undocumented", Repo: other, Status: model.StatusOpen}
+	if _, _, err := s.UpsertFindings([]model.Finding{stale, live, kept, elsewhere}); err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := s.ResolveStale("spec.undocumented", repo.Key(), map[string]bool{"fp2": true}, "no longer applies")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("resolved %d findings, want only the stale one", n)
+	}
+
+	st, err := s.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"fp1": model.StatusResolved, // stale: this run did not produce it
+		"fp2": model.StatusOpen,     // still produced
+		"fp3": model.StatusOpen,     // a different signal is none of our business
+		"fp4": model.StatusOpen,     // a different upstream likewise
+	}
+	for _, f := range st.Findings {
+		if got := want[f.Fingerprint]; f.Status != got {
+			t.Errorf("%s: status %q, want %q", f.Fingerprint, f.Status, got)
+		}
+	}
+}
+
+// Automatic resolution is only safe if it is reversible. Without this, a single
+// bad run would resolve a real finding and no later run could bring it back.
+func TestAResolvedFindingReopensWhenSeenAgain(t *testing.T) {
+	t.Parallel()
+	s := newStore(t)
+	repo := model.RepoRef{Provider: "github", GitHost: "github.com", Owner: "acme", Name: "billing"}
+	f := model.Finding{ID: "f1", Fingerprint: "fp1", Signal: "spec.undocumented", Repo: repo, Status: model.StatusOpen}
+	if _, _, err := s.UpsertFindings([]model.Finding{f}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ResolveStale("spec.undocumented", repo.Key(), nil, "gone"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := s.UpsertFindings([]model.Finding{f}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := s.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Findings[0].Status != model.StatusOpen {
+		t.Errorf("status %q after the finding was seen again, want %q",
+			st.Findings[0].Status, model.StatusOpen)
+	}
+}

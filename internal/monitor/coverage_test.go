@@ -203,10 +203,13 @@ func TestCoverageRunsWhenTheUpstreamHasNotMoved(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t, "/secret/backdoor")
 	h.repo(fixedTime)
-	h.tree("assets/openapi/partner-v3-api.yml")
-	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
 	h.srv.JSON("/repos/acme/billing/releases", []map[string]any{})
 	h.srv.JSON("/repos/acme/billing/commits", []map[string]any{ghtest.CommitJSON("base-sha", "initial")})
+	// baseline() rewrites the tree to a single openapi.yaml, and that is the
+	// path the check records in state -- so that is the path coverage will ask
+	// for. Serving anything else leaves the specification unreadable, which now
+	// correctly suppresses findings instead of producing false ones.
+	h.srv.Contents("acme", "billing", "openapi.yaml", "main", kaSpec)
 
 	// Establish state, then re-run the change-driven check: it skips.
 	h.baseline()
@@ -258,5 +261,119 @@ func TestCoverageResolvesSymbolicHostsViaMappings(t *testing.T) {
 	}
 	if len(res[0].Undocumented()) != 0 {
 		t.Errorf("/keys is declared and should be documented: %+v", res[0].Endpoints)
+	}
+}
+
+// The bug this guards against was found in production, not in a fixture: the
+// active gh account was switched, the token lost access to the upstream, every
+// specification fetch failed, and all twelve endpoints were reported as
+// undocumented. A specification we cannot read says nothing about whether it
+// declares an endpoint, so the only honest answer is that coverage is unknown.
+func TestCoverageDoesNotGuessWhenNoSpecificationCanBeRead(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, "/keys")
+	h.repo(fixedTime)
+	h.tree("assets/openapi/partner-v3-api.yml")
+	// No Contents registration, so fetching the specification fails.
+
+	res, findings, err := monitor.Coverage(context.Background(), monitor.CoverageOptions{
+		Store: h.store, Source: h.src, Index: h.idx,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Errorf("got %d finding(s); an unreadable specification is not evidence of anything", len(findings))
+	}
+	if len(res) != 1 {
+		t.Fatalf("got %d results, want 1", len(res))
+	}
+	if !res[0].Incomplete {
+		t.Error("the result should be marked incomplete")
+	}
+	if !strings.Contains(res[0].Note, "partner-v3-api.yml") {
+		t.Errorf("the note should name the specification it could not read: %q", res[0].Note)
+	}
+}
+
+// The dangerous case is partial failure rather than total: some specifications
+// read, others not. The endpoint below is genuinely absent from the one we can
+// read, so the old code reported it -- but it could be declared by the one we
+// cannot, which makes the finding a guess.
+func TestCoverageReportsNothingWhenOnlySomeSpecificationsCanBeRead(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, "/secret/backdoor")
+	h.repo(fixedTime)
+	h.tree("assets/openapi/partner-v3-api.yml", "assets/openapi/isv-v2-api.yml")
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	// isv-v2-api.yml is listed in the tree but never served.
+
+	res, findings, err := monitor.Coverage(context.Background(), monitor.CoverageOptions{
+		Store: h.store, Source: h.src, Index: h.idx,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Errorf("got %d finding(s), want none while any specification is unread", len(findings))
+	}
+	if !res[0].Incomplete {
+		t.Error("a partially read specification set must be marked incomplete")
+	}
+	// The readable specification is still reported, so the note is actionable.
+	if len(res[0].Specs) != 1 {
+		t.Errorf("Specs = %v, want just the one that was readable", res[0].Specs)
+	}
+}
+
+// The complete path must keep working, or the guard above would have bought
+// safety by disabling the feature.
+func TestCoverageStillReportsWhenEverySpecificationIsReadable(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, "/secret/backdoor")
+	h.repo(fixedTime)
+	h.tree("assets/openapi/partner-v3-api.yml")
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+
+	res, findings, err := monitor.Coverage(context.Background(), monitor.CoverageOptions{
+		Store: h.store, Source: h.src, Index: h.idx,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res[0].Incomplete {
+		t.Fatalf("marked incomplete despite reading every specification: %q", res[0].Note)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("got %d finding(s), want 1 for an endpoint no specification declares", len(findings))
+	}
+}
+
+// Specification paths are matched by filename, so the set routinely contains
+// files that were never specifications: the upstream ships two component-only schemas
+// under assets/openapi. Those parse as "not an OpenAPI document" and must not
+// be mistaken for specifications the monitor failed to read, or the real the upstream
+// repository would report "coverage undetermined" on every single run.
+func TestCoverageIgnoresFilesThatWereNeverSpecifications(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t, "/secret/backdoor")
+	h.repo(fixedTime)
+	h.tree("assets/openapi/partner-v3-api.yml", "assets/openapi/schema.yaml")
+	h.srv.Contents("acme", "billing", "assets/openapi/partner-v3-api.yml", "main", kaSpec)
+	// A components-only fragment: valid YAML, no openapi key, no paths.
+	h.srv.Contents("acme", "billing", "assets/openapi/schema.yaml", "main",
+		"components:\n  schemas:\n    Key:\n      type: object\n")
+
+	res, findings, err := monitor.Coverage(context.Background(), monitor.CoverageOptions{
+		Store: h.store, Source: h.src, Index: h.idx,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res[0].Incomplete {
+		t.Fatalf("a non-specification file must not make the run incomplete: %q", res[0].Note)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("got %d finding(s), want 1: the endpoint really is undeclared", len(findings))
 	}
 }
