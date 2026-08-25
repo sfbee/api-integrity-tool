@@ -376,7 +376,7 @@ var Adjustments = []scoreAdjustment{
 	{"host_from_binding", +10},
 	{"inferred_from_constructor", +4},
 	{"explicit_method", +5},
-	{"symbolic_host", -15},
+	{"symbolic_host", -SymbolicHostPenalty},
 	{"param_host", -20},
 	{"relative_host", -25},
 	{"unknown_host", -25},
@@ -478,6 +478,11 @@ func clamp(v, lo, hi int) int {
 
 // Confidence is a convenience wrapper mapping a score to its bucket.
 func Confidence(score int) index.Confidence { return index.ConfidenceFor(score) }
+
+// SymbolicHostPenalty is what a call loses for a host the scanner could not
+// resolve. It is named so the monitor can hand back exactly this much once the
+// user declares what the host is, rather than the two numbers drifting apart.
+const SymbolicHostPenalty = 15
 
 func appendFlag(flags []string, f string) []string {
 	for _, e := range flags {

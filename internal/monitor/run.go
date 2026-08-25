@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sfbee/api-integrity-tool/internal/classify"
 	"github.com/sfbee/api-integrity-tool/internal/config"
 	"github.com/sfbee/api-integrity-tool/internal/ghsource"
 	"github.com/sfbee/api-integrity-tool/internal/index"
@@ -491,9 +492,52 @@ func targetsFor(idx *index.Index, u model.Upstream, cfg *config.File) *TargetSet
 		if !u.Matches(c.Path) {
 			continue
 		}
-		calls = append(calls, c)
+		calls = append(calls, creditDeclaredHost(c, cfg, u.Host))
 	}
 	return NewTargetSet(calls)
+}
+
+// creditDeclaredHost gives back the confidence a call lost for having an
+// unresolvable host, when the user has since declared what that host is.
+//
+// The symbolic_host penalty exists because the scanner could not tell which
+// service a call goes to. A host_mappings entry answers exactly that question,
+// so once one exists the penalty is charging for an uncertainty that no longer
+// exists -- and it is charged on precisely the calls that matter most, since a
+// base URL held in configuration is the normal shape for an internal upstream.
+//
+// Left uncredited, a path this repository demonstrably calls could be deleted
+// upstream and still be graded info, because the finding inherits the call's
+// score. The detector penalty is untouched: a regex match really is weaker
+// evidence than a parsed one, and no amount of configuration changes that.
+func creditDeclaredHost(c index.Call, cfg *config.File, upstreamHost string) index.Call {
+	if cfg == nil || !hasFlag(c.Flags, "symbolic_host") {
+		return c
+	}
+	// Only an explicit declaration counts, not an incidental match.
+	declared := false
+	for _, h := range cfg.ResolveHost(c.Host) {
+		if strings.EqualFold(h, upstreamHost) && !strings.EqualFold(c.Host, upstreamHost) {
+			declared = true
+			break
+		}
+	}
+	if !declared {
+		return c
+	}
+	c.Score = min(100, c.Score+classify.SymbolicHostPenalty)
+	c.Confidence = index.ConfidenceFor(c.Score)
+	c.Flags = append(append([]string{}, c.Flags...), "host_declared")
+	return c
+}
+
+func hasFlag(flags []string, want string) bool {
+	for _, f := range flags {
+		if f == want {
+			return true
+		}
+	}
+	return false
 }
 
 // hostMatches reports whether an indexed call belongs to an upstream.
