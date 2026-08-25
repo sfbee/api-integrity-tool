@@ -123,21 +123,45 @@ files four unrelated services under the fifth.
 
 ---
 
-## 5. Keep monitoring out of shared git history
+## 5. Keep the scan output out of git
 
-If the repositories are shared, the footprint should be zero. Use
-`.git/info/exclude`, which is local and untracked — **not** `.gitignore`, which
-is a committed file:
+`scan` writes its index to `.api-integrity/` **inside the repository working
+tree**. It does not touch git history, and it does not modify any tracked file —
+the directory simply appears as untracked:
+
+```
+$ api-integrity-tool scan --repo-path .
+$ git status --porcelain
+?? .api-integrity/
+```
+
+Two reasons that matters in a shared repository. It makes `git status` noisy for
+whatever else you are working on, and a routine `git add -A` will happily stage
+it:
+
+```
+$ git add -A && git status --porcelain
+A  .api-integrity/index.json
+```
+
+That is the only route by which monitoring reaches history — you putting it
+there. Closing it takes one line per repository. Use `.git/info/exclude`, which
+is local and untracked, rather than `.gitignore`, which is a committed file and
+so is itself a change to the shared repository:
 
 ```bash
 for r in ~/src/myapp ~/src/shared-client; do
   printf '.api-integrity/\n.api-integrity.yml\n' >> "$r/.git/info/exclude"
 done
 
-# verify nothing leaked into either working tree
+# verify: git no longer sees it, even with everything staged
 git -C ~/src/myapp        status --porcelain | grep api-integrity   # expect nothing
 git -C ~/src/shared-client status --porcelain | grep api-integrity  # expect nothing
 ```
+
+If you would rather the index *were* committed — it is a useful artefact to
+review in a pull request, and the tool is designed for that — skip this step.
+The exclusion is for repositories where you want no footprint at all.
 
 ---
 
