@@ -19,7 +19,8 @@ if (( code == 0 )); then
 	note "these were already recorded. Re-running is not a fresh verdict."
 	note "This is the trap when wiring it into CI: a job that clones fresh every"
 	note "time never fails, because its first check is always a baseline."
-	note "Add --force to re-analyse the window, or gate on standing state:"
+	note "--force does not help: it re-analyses, but the findings already exist"
+	note "so they are updated rather than discovered. Gate on standing state:"
 	note "  findings --format json | jq -e '[.[]|select(.status==\"open\" and .severity==\"breaking\")]|length==0'"
 else
 	note "Non-zero means a finding at breaking or above was discovered, which is"

@@ -11,6 +11,10 @@ everything the demo created.
 ./demo.sh --no-pause   # straight through
 ```
 
+Prefer to type the commands yourself — to demonstrate to someone, or to adapt
+the flow to a real repository? [`MANUAL.md`](MANUAL.md) is every command these
+scripts issue, with its output.
+
 ## Why there is a fake upstream
 
 The tool reads an upstream repository through a handful of read-only GitHub
@@ -119,9 +123,11 @@ The commonest way to conclude the tool is broken:
 ## Two traps worth knowing
 
 **`--fail-on` gates on newly discovered findings, not standing ones.** Re-running
-`06-check.sh` exits 0, because the findings are no longer new. A CI job that
-clones fresh every time therefore never fails — its first check is always a
-baseline. Use `--force` to re-analyse, or gate on state:
+`06-check.sh` exits 0, because the findings are no longer new — and `--force` does
+not change that, since it re-analyses but the findings already exist, so they are
+updated rather than discovered. Only rolling the recorded baseline back makes them
+new again (see `MANUAL.md`). A CI job that clones fresh every time therefore never
+fails: its first check is always a baseline. To gate on standing state:
 
 ```bash
 api-integrity-tool findings --format json \
