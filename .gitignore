@@ -9,3 +9,7 @@
 
 # macOS
 .DS_Store
+
+# Scratch space for demos/local-no-github: a generated consumer repository, a
+# locally built binary and the fake upstream's logs. All reproducible.
+demos/*/.work/

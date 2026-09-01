@@ -1,0 +1,65 @@
+openapi: 3.0.3
+info:
+  title: AcmePay API
+  version: "2.0.0"
+servers:
+  - url: "https://api.acmepay.io"
+paths:
+  /v1/charges:
+    post:
+      operationId: createCharge
+      summary: Create a charge
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: idempotency_key
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Charge created
+  /v1/balances:
+    get:
+      operationId: getBalances
+      summary: Retrieve the merchant balances
+      responses:
+        "200":
+          description: Current balances
+  /v1/charges/{chargeId}:
+    get:
+      operationId: getCharge
+      summary: Retrieve a single charge
+      parameters:
+        - name: chargeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The charge
+  /v1/customers/{customerId}:
+    get:
+      operationId: getCustomer
+      summary: Retrieve a customer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The customer
+  /v1/refunds:
+    get:
+      operationId: listRefunds
+      summary: List refunds
+      responses:
+        "200":
+          description: A page of refunds
