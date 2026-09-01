@@ -70,9 +70,72 @@ def make_handler(up):
             self.end_headers()
             self.wfile.write(raw)
 
+        def _send_html(self, body, code=200):
+            raw = body.encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+
+        def _status_page(self):
+            rev = "2.0.0 (after the change)" if up.flipped else "1.4.0 (before the change)"
+            other = "before" if up.flipped else "after"
+            rows = "".join(
+                f"<tr><td><a href='{path}'>{path}</a></td><td>{what}</td></tr>"
+                for path, what in [
+                    (prefix, "repository metadata, including pushed_at"),
+                    (f"{prefix}/commits", "commit list"),
+                    (f"{prefix}/git/trees/{up.branch}", "file tree"),
+                    (f"{prefix}/contents/{up.spec_path}", "the specification at the current head"),
+                    (f"{prefix}/compare/{BEFORE_SHA[:7]}...{AFTER_SHA[:7]}", "the diff between revisions"),
+                    (f"{prefix}/releases", "releases (always empty here)"),
+                ])
+            return f"""<!doctype html>
+<meta charset=utf-8><title>local upstream stand-in</title>
+<style>
+ body{{font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;max-width:52rem;
+      margin:3rem auto;padding:0 1.5rem;color:#1a1a1a;background:#fafafa}}
+ h1{{font-size:1.1rem}} h2{{font-size:.95rem;margin-top:2rem}}
+ table{{border-collapse:collapse;width:100%}}
+ td{{padding:.3rem .6rem;border-bottom:1px solid #e5e5e5;vertical-align:top}}
+ td:first-child{{white-space:nowrap;width:1%}}
+ code,a{{color:#0645ad}} .now{{background:#fff;border:1px solid #ddd;
+      border-radius:4px;padding:.8rem 1rem;margin:1rem 0}}
+ .hint{{color:#666}}
+</style>
+<h1>Local upstream stand-in &mdash; not GitHub</h1>
+<p>This serves the handful of read-only GitHub API endpoints
+   <code>api-integrity-tool</code> reads, so the demo runs with no network, no
+   token and no real repository. It is <strong>working correctly</strong>; only
+   the paths below are implemented, so anything else returns 404.</p>
+<div class=now>
+  <strong>Standing in for:</strong> github.com/{up.owner}/{up.name} (branch {up.branch})<br>
+  <strong>Currently serving:</strong> API {rev}<br>
+  <strong>Head commit:</strong> <code>{up.head_sha[:12]}</code>
+  &middot; <strong>pushed_at:</strong> <code>{up.stamp()}</code>
+</div>
+<p class=hint>Flip the revision without restarting:<br>
+   <code>echo {other} &gt; {up.state_file}</code><br>
+   Then re-run <code>./06-check.sh</code>. The demo scripts do this for you.</p>
+<h2>Implemented endpoints</h2>
+<table>{rows}</table>
+<h2>What it does not do</h2>
+<p class=hint>No authentication, pagination, retries, ETag revalidation or real
+   rate limiting. It is a fixture, not a GitHub emulator.</p>
+"""
+
         def do_GET(self):
             u = urlparse(self.path)
             p, q = u.path, parse_qs(u.query)
+
+            # A browser hitting the root should learn what this is, not get a
+            # 404 that looks like a broken server.
+            if p in ("/", "/index.html"):
+                return self._send_html(self._status_page())
+
+            if p == "/healthz":
+                return self._send({"ok": True, "revision": "after" if up.flipped else "before"})
 
             if p == prefix:
                 return self._send({
@@ -136,7 +199,11 @@ def make_handler(up):
             if p in (f"{prefix}/releases", f"{prefix}/tags"):
                 return self._send([])
 
-            return self._send({"message": "Not Found"}, 404)
+            return self._send({
+                "message": "Not Found",
+                "note": (f"this stand-in only implements a few {prefix}/... paths; "
+                         "see http://127.0.0.1:%d/ for the list" % self.server.server_address[1]),
+            }, 404)
 
     return Handler
 

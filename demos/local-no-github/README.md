@@ -26,6 +26,12 @@ So the demo needs no network, no token and no write access to anyone's
 repository — and, more usefully, you author the exact upstream change worth
 demonstrating instead of waiting for a real one.
 
+**Open <http://127.0.0.1:8788/> while it runs.** It shows which revision is
+currently being served, the head SHA, and every endpoint it implements. Anything
+else returns a 404 that says so — the stand-in implements only the paths the tool
+asks for, so a 404 on some other path is correct behaviour, not a fault.
+`/healthz` returns the same state as JSON.
+
 ## The scripts
 
 | | |
