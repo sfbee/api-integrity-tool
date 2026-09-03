@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "tool": {
+    "name": "api-integrity-tool",
+    "version": "v0.0.0-20260825161422-64fa96c5e0fb",
+    "detector_version": 1
+  },
+  "repo": {
+    "root": "storefront"
+  },
+  "scan": {
+    "id": "s_c7edba03b045",
+    "commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+    "dirty": false,
+    "branch": "main",
+    "started_at": "2026-09-01T16:11:26.303862Z",
+    "duration_ms": 74,
+    "partial": false
+  },
+  "stats": {
+    "files_walked": 3,
+    "files_scanned": 1,
+    "files_skipped": {
+      "excluded": 1,
+      "unknown_extension": 2
+    },
+    "bytes_scanned": 2007,
+    "sites_detected": 6,
+    "by_language": {
+      "go": 6
+    },
+    "parse_errors": 0,
+    "unresolved_top": [
+      "arg:id"
+    ]
+  },
+  "hosts": [
+    {
+      "host_key": "api.acmepay.io",
+      "host_kind": "literal",
+      "call_count": 6,
+      "path_count": 5,
+      "methods": [
+        "ANY",
+        "GET",
+        "POST"
+      ],
+      "languages": [
+        "go"
+      ],
+      "max_confidence": "high"
+    }
+  ],
+  "calls": [
+    {
+      "id": "c_59ef80760a6d7d26",
+      "fingerprint": "f_8aa3484a646f389e",
+      "host": "api.acmepay.io",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "POST",
+      "path": "/v1/charges",
+      "query_keys": [
+        "currency"
+      ],
+      "kind": "http",
+      "raw_expr": "http.Post(vendor+\"/v1/charges?currency=usd\", \"application/json\", strings.NewReader(payload))",
+      "location": {
+        "file": "app.go",
+        "line": 20,
+        "column": 9,
+        "function": "chargeBasket"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "high",
+      "score": 95,
+      "flags": [
+        "explicit_method",
+        "fully_literal_url"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c7edba03b045",
+        "first_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "last_seen_scan": "s_c7edba03b045",
+        "last_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_876d1a1547fcd40a",
+      "fingerprint": "f_2c19eef89308bd5e",
+      "host": "api.acmepay.io",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "GET",
+      "path": "/v1/balance",
+      "kind": "http",
+      "raw_expr": "http.Get(vendor + \"/v1/balance\")",
+      "location": {
+        "file": "app.go",
+        "line": 25,
+        "column": 9,
+        "function": "merchantBalance"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "high",
+      "score": 95,
+      "flags": [
+        "explicit_method",
+        "fully_literal_url"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c7edba03b045",
+        "first_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "last_seen_scan": "s_c7edba03b045",
+        "last_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_1d608655a9dd03f7",
+      "fingerprint": "f_6f6fdccc92b005b1",
+      "host": "api.acmepay.io",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "GET",
+      "path": "/v1/charges/{id}",
+      "path_vars": [
+        {
+          "token": "{id}",
+          "source": "id"
+        }
+      ],
+      "kind": "http",
+      "raw_expr": "http.Get(vendor + \"/v1/charges/\" + id)",
+      "location": {
+        "file": "app.go",
+        "line": 30,
+        "column": 9,
+        "function": "chargeStatus"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "medium",
+      "score": 75,
+      "flags": [
+        "explicit_method"
+      ],
+      "unresolved": [
+        "arg:id"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c7edba03b045",
+        "first_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "last_seen_scan": "s_c7edba03b045",
+        "last_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_6e40bdbd078e63aa",
+      "fingerprint": "f_ba065c157cea29ff",
+      "host": "api.acmepay.io",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "GET",
+      "path": "/v1/customers/{id}",
+      "path_vars": [
+        {
+          "token": "{id}",
+          "source": "id"
+        }
+      ],
+      "kind": "http",
+      "raw_expr": "http.Get(vendor + \"/v1/customers/\" + id)",
+      "location": {
+        "file": "app.go",
+        "line": 36,
+        "column": 9,
+        "function": "customerProfile"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "medium",
+      "score": 75,
+      "flags": [
+        "explicit_method"
+      ],
+      "unresolved": [
+        "arg:id"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c7edba03b045",
+        "first_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "last_seen_scan": "s_c7edba03b045",
+        "last_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_09dbb81d09148bf3",
+      "fingerprint": "f_521c990f1013ff6d",
+      "host": "api.acmepay.io",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "GET",
+      "path": "/v1/refunds",
+      "kind": "http",
+      "raw_expr": "http.Get(vendor + \"/v1/refunds\")",
+      "location": {
+        "file": "app.go",
+        "line": 42,
+        "column": 9,
+        "function": "listRefunds"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.pkgfunc",
+      "detector": "go/ast",
+      "confidence": "high",
+      "score": 95,
+      "flags": [
+        "explicit_method",
+        "fully_literal_url"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c7edba03b045",
+        "first_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "last_seen_scan": "s_c7edba03b045",
+        "last_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "status": "active"
+      }
+    },
+    {
+      "id": "c_48bf2a3176a1c457",
+      "fingerprint": "f_ed64fe7e7b5c175f",
+      "host": "api.acmepay.io",
+      "host_kind": "literal",
+      "scheme": "https",
+      "method": "ANY",
+      "path": "/v1/customers/{id}",
+      "path_vars": [
+        {
+          "token": "{id}",
+          "source": "id"
+        }
+      ],
+      "kind": "http",
+      "raw_expr": "http.NewRequest(http.MethodPut, vendor+\"/v1/customers/\"+id, strings.NewReader(payload))",
+      "location": {
+        "file": "app.go",
+        "line": 49,
+        "column": 14,
+        "function": "updateCustomer"
+      },
+      "language": "go",
+      "client": "net/http",
+      "pattern": "net/http.NewRequest",
+      "detector": "go/ast",
+      "confidence": "medium",
+      "score": 75,
+      "flags": [
+        "explicit_method"
+      ],
+      "unresolved": [
+        "arg:id"
+      ],
+      "lifecycle": {
+        "first_seen_scan": "s_c7edba03b045",
+        "first_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "last_seen_scan": "s_c7edba03b045",
+        "last_seen_commit": "c573f771d112a91b8ec3af5f595c17d7208859c1",
+        "status": "active"
+      }
+    }
+  ]
+}

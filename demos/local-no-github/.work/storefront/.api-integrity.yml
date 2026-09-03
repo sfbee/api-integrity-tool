@@ -1,0 +1,6 @@
+version: 1
+
+github:
+  # Point at the local stand-in instead of api.github.com. Nothing in this demo
+  # reaches the network.
+  base_url: http://127.0.0.1:8788
